@@ -33,7 +33,7 @@ namespace OrderApi.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateOrder([FromBody] Model.Order order)
+        public async Task<IActionResult> CreateOrder([FromBody] Entities.Model.Order order)
         {
             if (order == null)
                 return BadRequest("Order cannot be null.");

@@ -2,9 +2,9 @@
 {
     public interface IOrderService
     {
-        Task<IEnumerable<Model.Order>> GetOrdersAsync();
-        Task<Model.Order?> GetOrderByIdAsync(Guid id);
-        Task<bool> CreateOrderAsync(Model.Order order);
-        Task<bool> RemoveOrderAsync(Model.Order order);
+        Task<IEnumerable<Entities.Model.Order>> GetOrdersAsync();
+        Task<Entities.Model.Order?> GetOrderByIdAsync(Guid id);
+        Task<bool> CreateOrderAsync(Entities.Model.Order order);
+        Task<bool> RemoveOrderAsync(Entities.Model.Order order);
     }
 }

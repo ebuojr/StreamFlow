@@ -1,4 +1,4 @@
-﻿namespace OrderApi.Model
+﻿namespace Entities.Model
 {
     public class OrderItem
     {
