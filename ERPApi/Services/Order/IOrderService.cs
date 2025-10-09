@@ -1,4 +1,4 @@
-﻿namespace OrderApi.Services.Order
+﻿namespace ERPApi.Services.Order
 {
     public interface IOrderService
     {

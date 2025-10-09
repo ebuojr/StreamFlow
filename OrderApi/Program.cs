@@ -1,4 +1,5 @@
 using MassTransit;
+using OrderApi.Services.Order;
 using static OrderApi.Configuration.ConfigReader;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +27,9 @@ builder.Services.AddMassTransit(x =>
         cfg.ConfigureEndpoints(context);
     });
 });
+
+// Services
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 var app = builder.Build();
 

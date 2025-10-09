@@ -1,6 +1,6 @@
-﻿namespace OrderApi.Services.Order
+﻿namespace ERPApi.Repository.Order
 {
-    public interface IOrderService
+    public interface IOrderRepository
     {
         Task<bool> CreateOrderAsync(Entities.Model.Order order);
     }
