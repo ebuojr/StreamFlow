@@ -1,6 +1,7 @@
 ﻿using Entities.Model;
 using ERPApi.Services.Order;
 using Microsoft.AspNetCore.Mvc;
+using Contracts;
 
 namespace ERPApi.Controllers
 {
@@ -17,8 +18,31 @@ namespace ERPApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateOrderAsync([FromBody] Order order)
         {
-            var createdOrder = await _orderService.CreateOrderAsync(order);
-            return createdOrder != null ? Ok(createdOrder) : BadRequest("Order could not be created");
+            if (order == null)
+                return BadRequest("Order cannot be null");
+
+            try
+            {
+                var createdOrderNo = await _orderService.CreateOrderAsync(order);
+                var response = new CreateOrderResponse
+                {
+                    OrderNo = createdOrderNo,
+                    IsSuccessfullyCreated = true,
+                    ErrorMessage = string.Empty
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                var response = new CreateOrderResponse
+                {
+                    OrderNo = 0,
+                    IsSuccessfullyCreated = false,
+                    ErrorMessage = ex.Message
+                };
+                return StatusCode(500, response);
+            }
         }
     }
 }

@@ -21,11 +21,7 @@ namespace OrderApi.Controllers
                 return BadRequest("Order cannot be null.");
 
             var result = await _orderService.CreateOrderAsync(order);
-            if (result)
-                return Ok();
-            else
-                return StatusCode(500,
-                    "A problem happened while handling your request.");
+            return Ok(new { OrderNo = result });
         }
     }
 }

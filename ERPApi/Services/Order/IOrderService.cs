@@ -2,6 +2,6 @@
 {
     public interface IOrderService
     {
-        Task<bool> CreateOrderAsync(Entities.Model.Order order);
+        Task<int> CreateOrderAsync(Entities.Model.Order order);
     }
 }

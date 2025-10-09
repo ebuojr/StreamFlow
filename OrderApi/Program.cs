@@ -1,18 +1,17 @@
 using MassTransit;
 using OrderApi.Services.Order;
-using static OrderApi.Configuration.ConfigReader;
+using OrderApi.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Bind RabbitMQ configuration
-var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQSettings").Get<RabbitMqSettings>()
-    ?? throw new InvalidOperationException("RabbitMQ configuration is missing");
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 // MassTransit with RabbitMQ
+var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQSettings").Get<RabbitMqSettings>()
+    ?? throw new InvalidOperationException("RabbitMQ configuration is missing");
+
 builder.Services.AddMassTransit(x =>
 {
     x.SetKebabCaseEndpointNameFormatter();

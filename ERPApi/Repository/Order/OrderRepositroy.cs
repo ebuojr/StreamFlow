@@ -1,4 +1,5 @@
 ﻿using ERPApi.DBContext;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERPApi.Repository.Order
 {
@@ -10,11 +11,19 @@ namespace ERPApi.Repository.Order
             _context = context;
         }
 
-        public async Task<bool> CreateOrderAsync(Entities.Model.Order order)
+        public async Task<int> CreateOrderAsync(Entities.Model.Order order)
         {
+            using var tx = await _context.Database.BeginTransactionAsync();
+
+            var maxOrderNo = await _context.Orders.MaxAsync(o => (int?)o.OrderNo) ?? 0;
+            var newOrderNo = maxOrderNo + 1;
+
+            order.OrderNo = newOrderNo;
             _context.Orders.Add(order);
-            var result = await _context.SaveChangesAsync();
-            return result > 0;
+            await _context.SaveChangesAsync();
+
+            await tx.CommitAsync();
+            return newOrderNo;
         }
     }
 }

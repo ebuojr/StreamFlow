@@ -9,7 +9,7 @@ namespace ERPApi.Services.Order
         {
             this.orderRepository = orderRepository;
         }
-        public async Task<bool> CreateOrderAsync(Entities.Model.Order order)
+        public async Task<int> CreateOrderAsync(Entities.Model.Order order)
         {
             return await orderRepository.CreateOrderAsync(order);
         }

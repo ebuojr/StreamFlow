@@ -11,14 +11,17 @@ namespace OrderApi.Services.Order
             _client = client;
         }
 
-        public async Task<bool> CreateOrderAsync(Entities.Model.Order order)
+        public async Task<int> CreateOrderAsync(Entities.Model.Order order)
         {
             var response = await _client.GetResponse<CreateOrderResponse>(new
             {
                 Order = order
             });
 
-            return response.Message.IsSuccessfullyCreated;
+            if (response.Message.IsSuccessfullyCreated)
+                return response.Message.OrderNo;
+            else
+                throw new Exception("Order creation failed in ERP system.");
         }
     }
 }

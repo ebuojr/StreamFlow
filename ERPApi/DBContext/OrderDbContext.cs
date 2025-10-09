@@ -20,6 +20,9 @@ namespace ERPApi.DBContext
             {
                 entity.HasKey(e => e.Id);
 
+                // Unique index for OrderNo
+                entity.HasIndex(e => e.OrderNo).IsUnique();
+
                 // Own simple single-value objects as owned types (flattened columns)
                 entity.OwnsOne(o => o.Customer, cb =>
                 {
@@ -62,6 +65,9 @@ namespace ERPApi.DBContext
                 item.Property(i => i.Name).IsRequired();
                 item.Property<Guid>("OrderId");
             });
+
+            // Remove previous Address keyless config if present
+            // (no longer needed since Address is owned)
         }
     }
 }
