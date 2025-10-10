@@ -30,11 +30,12 @@ namespace ERPApi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool?>("IsPreOrder")
+                    b.Property<bool>("IsPreOrder")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("OrderNo")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("OrderNo")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("OrderStatus")
                         .IsRequired()
@@ -45,10 +46,7 @@ namespace ERPApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrderNo")
-                        .IsUnique();
-
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("Entities.Model.OrderItem", b =>
@@ -81,11 +79,89 @@ namespace ERPApi.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("OrderItems");
+                    b.ToTable("OrderItems", (string)null);
                 });
 
             modelBuilder.Entity("Entities.Model.Order", b =>
                 {
+                    b.OwnsOne("Entities.Model.Customer", "Customer", b1 =>
+                        {
+                            b1.Property<Guid>("OrderId")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<string>("Email")
+                                .IsRequired()
+                                .HasColumnType("TEXT")
+                                .HasColumnName("CustomerEmail");
+
+                            b1.Property<string>("FirstName")
+                                .IsRequired()
+                                .HasColumnType("TEXT")
+                                .HasColumnName("CustomerFirstName");
+
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("TEXT")
+                                .HasColumnName("CustomerId");
+
+                            b1.Property<string>("LastName")
+                                .IsRequired()
+                                .HasColumnType("TEXT")
+                                .HasColumnName("CustomerLastName");
+
+                            b1.Property<string>("Phone")
+                                .IsRequired()
+                                .HasColumnType("TEXT")
+                                .HasColumnName("CustomerPhone");
+
+                            b1.HasKey("OrderId");
+
+                            b1.ToTable("Orders", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("OrderId");
+                        });
+
+                    b.OwnsOne("Entities.Model.Payment", "Payment", b1 =>
+                        {
+                            b1.Property<Guid>("OrderId")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<decimal>("Amount")
+                                .HasColumnType("TEXT")
+                                .HasColumnName("PaymentAmount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasColumnType("TEXT")
+                                .HasColumnName("Currency");
+
+                            b1.Property<DateTime>("PaidAt")
+                                .HasColumnType("TEXT")
+                                .HasColumnName("PaidAt");
+
+                            b1.Property<string>("PaymentMethod")
+                                .IsRequired()
+                                .HasColumnType("TEXT")
+                                .HasColumnName("PaymentMethod");
+
+                            b1.Property<string>("PaymentStatus")
+                                .IsRequired()
+                                .HasColumnType("TEXT")
+                                .HasColumnName("PaymentStatus");
+
+                            b1.Property<string>("TransactionId")
+                                .IsRequired()
+                                .HasColumnType("TEXT")
+                                .HasColumnName("TransactionId");
+
+                            b1.HasKey("OrderId");
+
+                            b1.ToTable("Orders", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("OrderId");
+                        });
+
                     b.OwnsOne("Entities.Model.Address", "ShippingAddress", b1 =>
                         {
                             b1.Property<Guid>("OrderId")
@@ -118,80 +194,7 @@ namespace ERPApi.Migrations
 
                             b1.HasKey("OrderId");
 
-                            b1.ToTable("Orders");
-
-                            b1.WithOwner()
-                                .HasForeignKey("OrderId");
-                        });
-
-                    b.OwnsOne("Entities.Model.Customer", "Customer", b1 =>
-                        {
-                            b1.Property<Guid>("OrderId")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Email")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("CustomerEmail");
-
-                            b1.Property<string>("FirstName")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("CustomerFirstName");
-
-                            b1.Property<Guid>("Id")
-                                .HasColumnType("TEXT")
-                                .HasColumnName("CustomerId");
-
-                            b1.Property<string>("LastName")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("CustomerLastName");
-
-                            b1.Property<string>("Phone")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("CustomerPhone");
-
-                            b1.HasKey("OrderId");
-
-                            b1.ToTable("Orders");
-
-                            b1.WithOwner()
-                                .HasForeignKey("OrderId");
-                        });
-
-                    b.OwnsOne("Entities.Model.Payment", "Payment", b1 =>
-                        {
-                            b1.Property<Guid>("OrderId")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<decimal>("Amount")
-                                .HasColumnType("TEXT")
-                                .HasColumnName("PaymentAmount");
-
-                            b1.Property<string>("Currency")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("Currency");
-
-                            b1.Property<DateTime?>("PaidAt")
-                                .HasColumnType("TEXT")
-                                .HasColumnName("PaidAt");
-
-                            b1.Property<string>("PaymentMethod")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("PaymentMethod");
-
-                            b1.Property<string>("PaymentStatus")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("PaymentStatus");
-
-                            b1.HasKey("OrderId");
-
-                            b1.ToTable("Orders");
+                            b1.ToTable("Orders", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
