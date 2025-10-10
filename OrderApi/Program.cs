@@ -1,6 +1,8 @@
 using MassTransit;
 using OrderApi.Services.Order;
 using OrderApi.Configuration;
+using Contracts;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +17,8 @@ var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQSettings").Get<
 builder.Services.AddMassTransit(x =>
 {
     x.SetKebabCaseEndpointNameFormatter();
+
+    x.AddRequestClient<CreateOrderRequest>(new Uri("queue:create-order-request"));
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(rabbitMqSettings.Host, rabbitMqSettings.Port, h =>
@@ -33,6 +37,7 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 var app = builder.Build();
 
 app.MapOpenApi();
+app.MapScalarApiReference();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();

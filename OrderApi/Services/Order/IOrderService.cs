@@ -2,6 +2,6 @@
 {
     public interface IOrderService
     {
-        Task<int> CreateOrderAsync(Entities.Model.Order order);
+        Task<int> SendOrderToERP(Entities.Model.Order order);
     }
 }

@@ -9,5 +9,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0-rc.1.25451.107" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0-rc.1.25451.107" />
+    <PackageReference Include="MassTransit" Version="8.5.4" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Contracts\Contracts.csproj" />
   </ItemGroup>
 </Project>

@@ -4,6 +4,7 @@ namespace Contracts
 {
     public record CreateOrderRequest
     {
-        public Order Order { get; set; }
+        public required Order Order { get; set; }
+        public Guid? CorrelationId { get; set; }
     }
 }
