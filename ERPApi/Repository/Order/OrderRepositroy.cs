@@ -13,10 +13,11 @@ namespace ERPApi.Repository.Order
 
         public async Task<int> CreateOrderAsync(Entities.Model.Order order)
         {
+            // Generate incremental OrderNo (max + 1) in a transaction to avoid race conditions
             using var tx = await _context.Database.BeginTransactionAsync();
 
             var maxOrderNo = await _context.Orders.MaxAsync(o => (int?)o.OrderNo) ?? 0;
-            var newOrderNo = maxOrderNo + 1;
+            int newOrderNo = maxOrderNo >= 1000 ? (maxOrderNo + 1) : 1000;
 
             order.OrderNo = newOrderNo;
             _context.Orders.Add(order);
