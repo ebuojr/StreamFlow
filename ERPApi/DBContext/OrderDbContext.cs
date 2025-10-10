@@ -65,9 +65,6 @@ namespace ERPApi.DBContext
                 item.Property(i => i.Name).IsRequired();
                 item.Property<Guid>("OrderId");
             });
-
-            // Remove previous Address keyless config if present
-            // (no longer needed since Address is owned)
         }
     }
 }
