@@ -39,19 +39,15 @@ namespace ERPApi.Migrations
                 oldClrType: typeof(bool),
                 oldType: "INTEGER");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Orders_OrderNo",
-                table: "Orders",
-                column: "OrderNo",
-                unique: true);
+            // Use raw SQL with IF NOT EXISTS to avoid duplicate index errors on SQLite
+            migrationBuilder.Sql("CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Orders_OrderNo\" ON \"Orders\" (\"OrderNo\");");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Orders_OrderNo",
-                table: "Orders");
+            // Use DROP INDEX IF EXISTS to safely drop the index on SQLite
+            migrationBuilder.Sql("DROP INDEX IF EXISTS \"IX_Orders_OrderNo\";");
 
             migrationBuilder.AlterColumn<DateTime>(
                 name: "PaidAt",
