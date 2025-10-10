@@ -45,52 +45,55 @@ namespace ERPApi.Controllers
             }
         }
 
-        private static Order MapToEntity(Order dto)
+        [HttpGet]
+        public async Task<IActionResult> GetAllOrders()
         {
-            return new Order
+            try
             {
-                Id = dto.Id,
-                OrderNo = dto.OrderNo,
-                CreatedAt = dto.CreatedAt,
-                OrderStatus = dto.OrderStatus,
-                CountryCode = dto.CountryCode,
-                IsPreOrder = dto.IsPreOrder,
-                TotalAmount = dto.TotalAmount,
-                OrderItems = dto.OrderItems?.Select(oi => new OrderItem
-                {
-                    Id = oi.Id,
-                    OrderId = oi.OrderId,
-                    Sku = oi.Sku,
-                    Name = oi.Name,
-                    Quantity = oi.Quantity,
-                    UnitPrice = oi.UnitPrice,
-                    TotalPrice = oi.TotalPrice
-                }).ToList() ?? new List<OrderItem>(),
-                Customer = dto.Customer == null ? null! : new Customer
-                {
-                    Id = dto.Customer.Id,
-                    FirstName = dto.Customer.FirstName,
-                    LastName = dto.Customer.LastName,
-                    Email = dto.Customer.Email,
-                    Phone = dto.Customer.Phone
-                },
-                Payment = dto.Payment == null ? null! : new Payment
-                {
-                    PaymentMethod = dto.Payment.PaymentMethod,
-                    PaymentStatus = dto.Payment.PaymentStatus,
-                    PaidAt = dto.Payment.PaidAt,
-                    Currency = dto.Payment.Currency,
-                    Amount = dto.Payment.Amount
-                },
-                ShippingAddress = dto.ShippingAddress == null ? null! : new Address
-                {
-                    Street = dto.ShippingAddress.Street,
-                    City = dto.ShippingAddress.City,
-                    State = dto.ShippingAddress.State,
-                    PostalCode = dto.ShippingAddress.PostalCode,
-                    Country = dto.ShippingAddress.Country
-                }
-            };
+                var orders = await _orderService.GetAllOrders();
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetOrderById(Guid id)
+        {
+            try
+            {
+                var order = await _orderService.GetOrderById(id);
+                if (order == null)
+                    return NotFound($"Order with ID {id} not found.");
+
+                return Ok(order);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> UpdateOrderStatus(Guid id, [FromBody] string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+                return BadRequest("Status cannot be null or empty.");
+
+            try
+            {
+                var isUpdated = await _orderService.UpdateOrderStatus(id, status);
+                if (!isUpdated)
+                    return NotFound($"Order with ID {id} not found.");
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
     }
 }
