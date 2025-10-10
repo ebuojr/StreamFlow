@@ -10,6 +10,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// CORS - Allow all origins, methods, and headers
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 // MassTransit with RabbitMQ
 var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQSettings").Get<RabbitMqSettings>()
     ?? throw new InvalidOperationException("RabbitMQ configuration is missing");
@@ -38,6 +49,7 @@ var app = builder.Build();
 
 app.MapOpenApi();
 app.MapScalarApiReference();
+app.UseCors(); // Enable CORS middleware
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
