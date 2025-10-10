@@ -5,7 +5,7 @@
         public Guid Id { get; set; }
         public int OrderNo { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string OrderStatus { get; set; }
+        public string OrderState { get; set; }
         public string CountryCode { get; set; }
         public bool? IsPreOrder { get; set; }
         public decimal TotalAmount { get; set; }

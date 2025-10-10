@@ -51,7 +51,7 @@ namespace ERPApi.Repository.Order
         {
             var orders = await _context.Orders
                 .Include(o => o.OrderItems)
-                .Where(o => o.OrderStatus == state)
+                .Where(o => o.OrderState == state)
                 .ToListAsync();
             return orders;
         }
@@ -64,7 +64,7 @@ namespace ERPApi.Repository.Order
             if (order == null)
                 return false;
 
-            order.OrderStatus = state;
+            order.OrderState = state;
             await _context.SaveChangesAsync();
             await tx.CommitAsync();
             return true;
