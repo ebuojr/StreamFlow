@@ -2,6 +2,7 @@
 using ERPApi.Services.Order;
 using Microsoft.AspNetCore.Mvc;
 using Contracts;
+using System.Security.Cryptography;
 
 namespace ERPApi.Controllers
 {
@@ -19,7 +20,7 @@ namespace ERPApi.Controllers
         public async Task<IActionResult> CreateOrderAsync([FromBody] Order order)
         {
             if (order == null)
-                return BadRequest("Order cannot be null");
+                return BadRequest(new CreateOrderResponse() { ErrorMessage = "Order can't be null" });
 
             try
             {
@@ -39,8 +40,9 @@ namespace ERPApi.Controllers
                 {
                     OrderNo = 0,
                     IsSuccessfullyCreated = false,
-                    ErrorMessage = ex.Message
+                    ErrorMessage = ex.Message + ex.InnerException?.Message
                 };
+
                 return StatusCode(500, response);
             }
         }

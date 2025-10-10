@@ -12,18 +12,16 @@ namespace OrderApi.Services.Order
             _client = client;
         }
 
-        public async Task<int> SendOrderToERP(Entities.Model.Order order)
+        public async Task<CreateOrderResponse> SendOrderToERP(Entities.Model.Order order)
         {
-            var correlationId = Guid.NewGuid();
+            var correlationId = order.Id;
             var response = await _client.GetResponse<CreateOrderResponse>(new CreateOrderRequest
             {
                 Order = order,
                 CorrelationId = correlationId
             });
 
-            if (!response.Message.IsSuccessfullyCreated)
-                throw new InvalidOperationException($"Order creation failed: {response.Message.ErrorMessage}");
-            return response.Message.OrderNo;
+            return response.Message;
         }
     }
 }

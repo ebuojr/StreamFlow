@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OrderApi.Services.Order;
-using Contracts;
 
 namespace OrderApi.Controllers
 {
@@ -21,13 +20,8 @@ namespace OrderApi.Controllers
             if (order == null)
                 return BadRequest("Order cannot be null.");
 
-            var orderNo = await _orderService.SendOrderToERP(order);
-            return Ok(new CreateOrderResponse
-            {
-                OrderNo = orderNo,
-                IsSuccessfullyCreated = true,
-                ErrorMessage = string.Empty
-            });
+            var resposne = await _orderService.SendOrderToERP(order);
+            return Ok(resposne);
         }
     }
 }

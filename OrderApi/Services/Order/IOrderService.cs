@@ -1,7 +1,9 @@
-﻿namespace OrderApi.Services.Order
+﻿using Contracts;
+
+namespace OrderApi.Services.Order
 {
     public interface IOrderService
     {
-        Task<int> SendOrderToERP(Entities.Model.Order order);
+        Task<CreateOrderResponse> SendOrderToERP(Entities.Model.Order order);
     }
 }
