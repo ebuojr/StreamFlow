@@ -2,7 +2,6 @@
 using ERPApi.Services.Order;
 using Microsoft.AspNetCore.Mvc;
 using Contracts;
-using System.Security.Cryptography;
 
 namespace ERPApi.Controllers
 {
@@ -78,15 +77,29 @@ namespace ERPApi.Controllers
             }
         }
 
-        [HttpPut("{id}/status")]
-        public async Task<IActionResult> UpdateOrderStatus(Guid id, [FromBody] string status)
+        [HttpGet("{state}")]
+        public async Task<IActionResult> GetOrdersByState(string state)
         {
-            if (string.IsNullOrWhiteSpace(status))
+            try
+            {
+                var orders = await _orderService.GetOrderByState(state);
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPut("{id}/state")]
+        public async Task<IActionResult> UpdateOrderState(Guid id, [FromBody] string state)
+        {
+            if (string.IsNullOrWhiteSpace(state))
                 return BadRequest("Status cannot be null or empty.");
 
             try
             {
-                var isUpdated = await _orderService.UpdateOrderStatus(id, status);
+                var isUpdated = await _orderService.UpdateOrderState(id, state);
                 if (!isUpdated)
                     return NotFound($"Order with ID {id} not found.");
 

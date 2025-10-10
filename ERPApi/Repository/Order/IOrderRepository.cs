@@ -4,7 +4,8 @@
     {
         Task<IEnumerable<Entities.Model.Order>> GetAllOrders();
         Task<int> CreateOrderAsync(Entities.Model.Order order);
+        Task<IEnumerable<Entities.Model.Order>> GetOrderByState(string state);
         Task<Entities.Model.Order> GetOrderById(Guid id);
-        Task<bool> UpdateOrderStatus(Guid id, string status);
+        Task<bool> UpdateOrderState(Guid id, string state);
     }
 }

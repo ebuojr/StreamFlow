@@ -47,7 +47,16 @@ namespace ERPApi.Repository.Order
             return order;
         }
 
-        public async Task<bool> UpdateOrderStatus(Guid id, string status)
+        public async Task<IEnumerable<Entities.Model.Order>> GetOrderByState(string state)
+        {
+            var orders = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Where(o => o.OrderStatus == state)
+                .ToListAsync();
+            return orders;
+        }
+
+        public async Task<bool> UpdateOrderState(Guid id, string state)
         {
             using var tx = await _context.Database.BeginTransactionAsync();
 
@@ -55,7 +64,7 @@ namespace ERPApi.Repository.Order
             if (order == null)
                 return false;
 
-            order.OrderStatus = status;
+            order.OrderStatus = state;
             await _context.SaveChangesAsync();
             await tx.CommitAsync();
             return true;

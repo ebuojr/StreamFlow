@@ -24,9 +24,14 @@ namespace ERPApi.Services.Order
             return await orderRepository.GetOrderById(id);
         }
 
-        public async Task<bool> UpdateOrderStatus(Guid id, string status)
+        public Task<IEnumerable<Entities.Model.Order>> GetOrderByState(string state)
         {
-            return await orderRepository.UpdateOrderStatus(id, status);
+            return orderRepository.GetOrderByState(state);
+        }
+
+        public async Task<bool> UpdateOrderState(Guid id, string state)
+        {
+            return await orderRepository.UpdateOrderState(id, state);
         }
     }
 }
