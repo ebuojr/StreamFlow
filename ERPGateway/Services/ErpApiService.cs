@@ -50,5 +50,30 @@ namespace ERPGateway.Services
                 throw new HttpRequestException($"Failed to call ERP API: {ex.Message}", ex);
             }
         }
+
+        public async Task<IEnumerable<Order>> GetOrdersByState(string state, CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Fetching orders from ERP API by state {State}", state);
+
+            var requestUri = $"api/Order/{Uri.EscapeDataString(state)}";
+            var httpResponse = await _httpClient.GetAsync(requestUri, cancellationToken);
+
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                var errorContent = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("ERP API returned error {StatusCode} for state {State}: {ErrorContent}",
+                    httpResponse.StatusCode, state, errorContent);
+                throw new HttpRequestException($"ERP API HTTP {(int)httpResponse.StatusCode} {httpResponse.ReasonPhrase}: {errorContent}");
+            }
+
+            var orders = await httpResponse.Content.ReadFromJsonAsync<IEnumerable<Order>>(cancellationToken: cancellationToken);
+            if (orders == null)
+            {
+                _logger.LogError("ERP API returned empty body when querying orders by state {State}", state);
+                throw new InvalidOperationException("ERP API returned empty response");
+            }
+
+            return orders;
+        }
     }
 }

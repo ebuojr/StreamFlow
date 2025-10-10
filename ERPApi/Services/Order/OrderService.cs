@@ -9,9 +9,13 @@ namespace ERPApi.Services.Order
         {
             this.orderRepository = orderRepository;
         }
-        public async Task<int> CreateOrderAsync(Entities.Model.Order order)
+        public async Task<int> CreateAndSendOrderAsync(Entities.Model.Order order)
         {
-            return await orderRepository.CreateOrderAsync(order);
+            var createdOrderNo = await orderRepository.CreateOrderAsync(order);
+
+            // need to send order picking service here
+
+            return createdOrderNo;
         }
 
         public async Task<IEnumerable<Entities.Model.Order>> GetAllOrders()

@@ -23,7 +23,7 @@ namespace ERPApi.Controllers
 
             try
             {
-                var createdOrderNo = await _orderService.CreateOrderAsync(order);
+                var createdOrderNo = await _orderService.CreateAndSendOrderAsync(order);
                 var response = new CreateOrderResponse
                 {
                     OrderNo = createdOrderNo,
