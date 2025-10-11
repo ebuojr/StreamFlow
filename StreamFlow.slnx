@@ -5,4 +5,5 @@
   <Project Path="ERPGateway/ERPGateway.csproj" Id="c04cc340-5cb7-409e-a17c-5523080e3a2f" />
   <Project Path="InventoryApi/InventoryApi.csproj" Id="85b676d2-e3b0-48fb-b590-1dbf6f2047c3" />
   <Project Path="OrderApi/OrderApi.csproj" />
+  <Project Path="PickingService/PickingService.csproj" Id="5d520d72-b190-43b6-b8d5-a1166ff39e83" />
 </Solution>
