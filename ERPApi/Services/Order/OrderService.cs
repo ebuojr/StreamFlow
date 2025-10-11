@@ -27,7 +27,6 @@ namespace ERPApi.Services.Order
 
             // send order to picking service
             await SendOrderToPicking(order);
-
             return createdOrderNo;
         }
 

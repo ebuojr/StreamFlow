@@ -19,13 +19,13 @@ namespace Entities.Model
         public string FindOrderType()
         {
             if (IsPreOrder == true)
-                return "Pre-Order";
+                return "pre-Order";
 
             var cc = CountryCode;
             if (!string.IsNullOrWhiteSpace(cc) && string.Equals(cc.Trim(), "DK", StringComparison.OrdinalIgnoreCase))
-                return "Priority";
+                return "priority";
 
-            return "Standard";
+            return "standard";
         }
     }
 }
