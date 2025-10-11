@@ -45,8 +45,6 @@ builder.Services.AddMassTransit(x =>
         cfg.ReceiveEndpoint("create-order-request", e =>
         {
             e.ConfigureConsumer<CreateOrderRequestConsumer>(context);
-            e.PrefetchCount = 16;
-            e.ConcurrentMessageLimit = 8;
         });
     });
 });
