@@ -1,4 +1,6 @@
-﻿namespace Entities.Model
+﻿using System.Security.Cryptography;
+
+namespace Entities.Model
 {
     public class Order
     {
@@ -13,5 +15,17 @@
         public Customer Customer { get; set; }
         public Payment Payment { get; set; }
         public Address ShippingAddress { get; set; }
+
+        public string FindOrderType()
+        {
+            if (IsPreOrder == true)
+                return "Pre-Order";
+
+            var cc = CountryCode;
+            if (!string.IsNullOrWhiteSpace(cc) && string.Equals(cc.Trim(), "DK", StringComparison.OrdinalIgnoreCase))
+                return "Priority";
+
+            return "Standard";
+        }
     }
 }

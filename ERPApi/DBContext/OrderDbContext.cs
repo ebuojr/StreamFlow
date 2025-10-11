@@ -11,7 +11,7 @@ namespace ERPApi.DBContext
 
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
-
+        public DbSet<OrderSentToPicking> OrderSentToPickings { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -64,6 +64,13 @@ namespace ERPApi.DBContext
                 item.Property(i => i.Sku).IsRequired();
                 item.Property(i => i.Name).IsRequired();
                 item.Property<Guid>("OrderId");
+            });
+
+            modelBuilder.Entity<OrderSentToPicking>(osp =>
+            {
+                osp.HasKey(o => o.Id);
+                osp.Property(o => o.OrderNo).IsRequired();
+                osp.Property(o => o.SentTime).IsRequired();
             });
         }
     }
