@@ -12,18 +12,11 @@ namespace ERPGateway.Messaging
             try
             {
                 var request = context.Message;
-                logger.LogInformation("Processing CreateOrderRequest for order {OrderId}", request.Order.Id);
-
                 var response = await erpApiService.CreateOrderAsync(request.Order, context.CancellationToken);
                 await context.RespondAsync(response);
-                
-                logger.LogInformation("Successfully processed CreateOrderRequest for order {OrderId}, OrderNo: {OrderNo}", 
-                    request.Order.Id, response.OrderNo);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to process CreateOrderRequest for order {OrderId}", context.Message.Order.Id);
-                
                 await publishEndpoint.Publish(new UnhandledOrderByERP
                 {
                     Order = context.Message.Order,
@@ -35,7 +28,7 @@ namespace ERPGateway.Messaging
                 {
                     OrderNo = 0,
                     IsSuccessfullyCreated = false,
-                    ErrorMessage = ex.Message
+                    ErrorMessage = ex.Message + ex.InnerException?.Message
                 });
             }
         }

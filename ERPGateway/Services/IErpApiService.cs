@@ -6,6 +6,5 @@ namespace ERPGateway.Services
     public interface IErpApiService
     {
         Task<CreateOrderResponse> CreateOrderAsync(Order order, CancellationToken cancellationToken = default);
-        Task<IEnumerable<Order>> GetOrdersByState(string state, CancellationToken cancellationToken = default);
     }
 }
