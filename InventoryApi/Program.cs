@@ -1,4 +1,6 @@
 using InventoryApi.DBContext;
+using InventoryApi.Repository.Inventory;
+using InventoryApi.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,12 +11,15 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-var app = builder.Build();
-
 // Database
 builder.Services.AddDbContext<InventoryDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
+
+builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
+
+var app = builder.Build();
 
 app.MapOpenApi();
 app.UseHttpsRedirection();
