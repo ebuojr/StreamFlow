@@ -1,5 +1,8 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using OutboxApi.Configuration;
 using OutboxApi.DBContext;
+using OutboxApi.Messaging;
 using OutboxApi.Repository;
 using OutboxApi.Services;
 
@@ -16,6 +19,34 @@ builder.Services.AddDbContext<OutboxDbContext>(options =>
 
 builder.Services.AddScoped<IOutboxRepository, OutboxRepository>();
 builder.Services.AddScoped<IOutboxService, OutboxService>();
+
+var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQSettings").Get<RabbitMqSettings>()
+    ?? throw new InvalidOperationException("RabbitMQ configuration is missing");
+
+builder.Services.AddMassTransit(x =>
+{
+    x.SetKebabCaseEndpointNameFormatter();
+    
+    // Register the Outbox consumer
+    x.AddConsumer<OutboxConsumer>();
+    
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(rabbitMqSettings.Host, rabbitMqSettings.Port, h =>
+        {
+            h.Username(rabbitMqSettings.Username);
+            h.Password(rabbitMqSettings.Password);
+        });
+
+        // Configure the receive endpoint for Outbox messages
+        cfg.ReceiveEndpoint("outbox-messages", e =>
+        {
+            e.ConfigureConsumer<OutboxConsumer>(context);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 

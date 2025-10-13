@@ -2,7 +2,7 @@
 {
     public class Outbox
     {
-        public Guid Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
         public string MessageType { get; set; }
         public string Payload { get; set; }
         public DateTime CreatedAt { get; set; }

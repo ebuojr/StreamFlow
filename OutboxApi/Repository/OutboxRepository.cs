@@ -16,9 +16,6 @@ namespace OutboxApi.Repository
         public async Task AddNewOutboxAsync(Outbox outbox)
         {
             using var tx = await _context.Database.BeginTransactionAsync();
-
-            outbox.Id = Guid.NewGuid();
-            outbox.CreatedAt = DateTime.UtcNow;
             outbox.RetryCount = 0;
 
             _context.Outboxes.Add(outbox);
