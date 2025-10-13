@@ -1,5 +1,6 @@
 using ERPApi.Configuration;
 using ERPApi.DBContext;
+using ERPApi.Messaging;
 using ERPApi.Repository.Order;
 using ERPApi.Services.Order;
 using MassTransit;
@@ -28,12 +29,22 @@ var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQSettings").Get<
 builder.Services.AddMassTransit(x =>
 {
     x.SetKebabCaseEndpointNameFormatter();
+    
+    // Register the CreateOrderRequest consumer
+    x.AddConsumer<CreateOrderRequestConsumer>();
+    
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(rabbitMqSettings.Host, rabbitMqSettings.Port, h =>
         {
             h.Username(rabbitMqSettings.Username);
             h.Password(rabbitMqSettings.Password);
+        });
+
+        // Configure the receive endpoint for CreateOrderRequest
+        cfg.ReceiveEndpoint("create-order-request", e =>
+        {
+            e.ConfigureConsumer<CreateOrderRequestConsumer>(context);
         });
 
         cfg.ConfigureEndpoints(context);
