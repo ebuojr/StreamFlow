@@ -1,4 +1,5 @@
 using Contracts;
+using Entities.Model;
 using ERPApi.Services.Order;
 using MassTransit;
 
@@ -13,11 +14,23 @@ namespace ERPApi.Messaging
             {
                 var request = context.Message;
                 var orderNo = await orderService.CreateAndSendOrderAsync(request.Order);
+
+                // Respond with success
                 await context.RespondAsync(new CreateOrderResponse
                 {
                     OrderNo = orderNo,
                     IsSuccessfullyCreated = true,
                     ErrorMessage = string.Empty
+                });
+
+                // Publish to outbox
+                await publishEndpoint.Publish(new Outbox()
+                {
+                    ProcessedAt = DateTime.Now,
+                    MessageType = nameof(CreateOrderRequest),
+                    Payload = System.Text.Json.JsonSerializer.Serialize(request),
+                    CreatedAt = DateTime.UtcNow,
+                    RetryCount = 0
                 });
             }
             catch (Exception ex)
