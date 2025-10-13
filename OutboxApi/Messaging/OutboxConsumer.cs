@@ -7,12 +7,9 @@ namespace OutboxApi.Messaging
     public class OutboxConsumer : IConsumer<Outbox>
     {
         private readonly IOutboxService _outboxService;
-        private readonly ILogger<OutboxConsumer> _logger;
-
-        public OutboxConsumer(IOutboxService outboxService, ILogger<OutboxConsumer> logger)
+        public OutboxConsumer(IOutboxService outboxService)
         {
             _outboxService = outboxService;
-            _logger = logger;
         }
 
         public async Task Consume(ConsumeContext<Outbox> context)
