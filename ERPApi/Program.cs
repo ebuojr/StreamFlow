@@ -60,6 +60,7 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>();
     x.AddConsumer<ERPApi.Consumers.StockReservedConsumer>();
     x.AddConsumer<ERPApi.Consumers.StockUnavailableConsumer>();
+    x.AddConsumer<ERPApi.Consumers.PartialStockReservedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPickedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
     
@@ -91,6 +92,12 @@ builder.Services.AddMassTransit(x =>
         cfg.ReceiveEndpoint("erp-stock-unavailable", e =>
         {
             e.ConfigureConsumer<ERPApi.Consumers.StockUnavailableConsumer>(context);
+            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+        });
+        
+        cfg.ReceiveEndpoint("erp-partial-stock-reserved", e =>
+        {
+            e.ConfigureConsumer<ERPApi.Consumers.PartialStockReservedConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         });
         

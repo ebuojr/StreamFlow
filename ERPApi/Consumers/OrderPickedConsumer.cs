@@ -31,6 +31,7 @@ namespace ERPApi.Consumers
             try
             {
                 var order = await _context.Orders
+                    .Include(o => o.OrderItems)
                     .FirstOrDefaultAsync(o => o.Id == message.OrderId);
 
                 if (order == null)
@@ -40,12 +41,27 @@ namespace ERPApi.Consumers
                     return;
                 }
 
+                // Update order state
                 order.OrderState = "Picked";
+                
+                // Create lookup set for picked SKUs
+                var pickedSkus = new HashSet<string>(message.Items.Select(i => i.Sku ?? string.Empty));
+                
+                // Mark picked items as "Picked" (items in the event were actually picked)
+                foreach (var item in order.OrderItems)
+                {
+                    if (pickedSkus.Contains(item.Sku ?? string.Empty))
+                    {
+                        item.Status = "Picked";
+                    }
+                    // Note: Items not in the picked list remain in their previous state (e.g., "Unavailable" for partial orders)
+                }
+                
                 _context.Orders.Update(order);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Updated Order {OrderId} state to Picked (CorrelationId: {CorrelationId})",
-                    message.OrderId, message.CorrelationId);
+                _logger.LogInformation("Updated Order {OrderId} state to Picked, {PickedCount} items marked as Picked (CorrelationId: {CorrelationId})",
+                    message.OrderId, message.Items.Count, message.CorrelationId);
             }
             catch (Exception ex)
             {

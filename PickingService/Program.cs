@@ -32,6 +32,7 @@ try
     {
         // Register consumers
         x.AddConsumer<StockReservedConsumer>();
+        x.AddConsumer<PartialStockReservedConsumer>();
 
         x.UsingRabbitMq((context, cfg) =>
         {
@@ -41,12 +42,27 @@ try
                 h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
             });
 
-            // Configure priority queue for picking
+            // Configure priority queue for picking (full stock reserved)
             cfg.ReceiveEndpoint("picking-stock-reserved", e =>
             {
                 e.ConfigureConsumer<StockReservedConsumer>(context);
 
                 // Priority queue configuration
+                e.SetQueueArgument("x-max-priority", 10);
+                
+                // Low prefetch count for priority queue fairness
+                e.PrefetchCount = 4;
+
+                // Retry policy: 3 retries with 5 second interval
+                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            });
+
+            // Configure priority queue for partial stock (same priority handling)
+            cfg.ReceiveEndpoint("picking-partial-stock-reserved", e =>
+            {
+                e.ConfigureConsumer<PartialStockReservedConsumer>(context);
+
+                // Priority queue configuration (same as full stock)
                 e.SetQueueArgument("x-max-priority", 10);
                 
                 // Low prefetch count for priority queue fairness

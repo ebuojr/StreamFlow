@@ -149,9 +149,10 @@ namespace ERPApi.Controllers
             {
                 "Created" => "✅ Order received and is being processed",
                 "StockReserved" => "📦 Stock has been reserved for your order",
+                "PartialDelivered" => "⚠️ Some items are unavailable - partial fulfillment in progress",
                 "Picked" => "👷 Your order has been picked from the warehouse",
                 "Packed" => "📮 Your order has been packed and is ready for shipping",
-                "StockUnavailable" => "❌ Some items in your order are out of stock",
+                "StockUnavailable" => "❌ All items in your order are out of stock",
                 "Failed" => "⚠️ There was an issue processing your order",
                 "Pending" => "⏳ Order is pending",
                 _ => "🔄 Your order is being processed"
@@ -179,6 +180,19 @@ namespace ERPApi.Controllers
                     StatusMessage = GetStatusMessage("StockReserved"),
                     Timestamp = order.CreatedAt.AddSeconds(1) // Approximate timing
                 });
+            }
+
+            if (order.OrderState == "PartialDelivered" || order.OrderState == "Picked" || order.OrderState == "Packed")
+            {
+                if (order.OrderState == "PartialDelivered")
+                {
+                    history.Add(new OrderStatusHistoryItem
+                    {
+                        State = "PartialDelivered",
+                        StatusMessage = GetStatusMessage("PartialDelivered"),
+                        Timestamp = order.CreatedAt.AddSeconds(1) // Approximate timing
+                    });
+                }
             }
 
             if (order.OrderState == "Picked" || order.OrderState == "Packed")

@@ -1,3 +1,4 @@
+using Contracts.Dtos;
 using Contracts.Events;
 using MassTransit;
 
@@ -6,6 +7,8 @@ namespace InventoryService.Consumers
     public class OrderCreatedConsumer : IConsumer<OrderCreated>
     {
         private readonly ILogger<OrderCreatedConsumer> _logger;
+        private readonly Random _random = new Random();
+        private const double ITEM_AVAILABILITY_RATE = 0.80; // 80% chance each item is in stock
 
         public OrderCreatedConsumer(ILogger<OrderCreatedConsumer> logger)
         {
@@ -25,18 +28,36 @@ namespace InventoryService.Consumers
                 orderCreated.TotalItems,
                 orderCreated.CorrelationId);
 
-            // Content-Based Router: Route based on order type and priority
-            if (orderCreated.OrderType == "Priority" && orderCreated.Priority == 9) // DK High Priority
+            // Perform random inventory check (80% availability per item)
+            var checkDelay = (orderCreated.OrderType == "Priority" && orderCreated.Priority == 9) ? 100 : 500;
+            await Task.Delay(checkDelay); // Simulate inventory check time
+
+            // Check availability for each item (random: 80% chance each is in stock)
+            var availableItems = new List<OrderItemDto>();
+            var unavailableItems = new List<OrderItemDto>();
+
+            foreach (var item in orderCreated.Items)
+            {
+                bool isAvailable = _random.NextDouble() < ITEM_AVAILABILITY_RATE;
+                
+                if (isAvailable)
+                {
+                    availableItems.Add(item);
+                }
+                else
+                {
+                    unavailableItems.Add(item);
+                }
+            }
+
+            // Scenario 1: ALL items available (most common - ~80% of orders)
+            if (unavailableItems.Count == 0)
             {
                 _logger.LogInformation(
-                    "💚 [INVENTORY] High-priority DK order detected. Fast-tracking to picking. [OrderNo={OrderNo}, CorrelationId={CorrelationId}]",
+                    "💚 [INVENTORY] ✅ All items available for OrderNo={OrderNo}. Publishing StockReserved. [CorrelationId={CorrelationId}]",
                     orderCreated.OrderNo,
                     orderCreated.CorrelationId);
 
-                // Simulate inventory check (always in stock for demo)
-                await Task.Delay(100); // Simulate quick check
-
-                // Publish StockReserved to picking-queue
                 await context.Publish(new StockReserved
                 {
                     OrderId = orderCreated.OrderId,
@@ -47,41 +68,53 @@ namespace InventoryService.Consumers
                     CorrelationId = orderCreated.CorrelationId,
                     ReservedAt = DateTime.UtcNow
                 });
-
-                _logger.LogInformation(
-                    "💚 [INVENTORY] StockReserved published for OrderNo={OrderNo} [CorrelationId={CorrelationId}]",
-                    orderCreated.OrderNo,
-                    orderCreated.CorrelationId);
             }
+            // Scenario 2: NO items available (rare)
+            else if (availableItems.Count == 0)
+            {
+                var unavailableSkus = string.Join(", ", unavailableItems.Select(i => i.Sku));
+                
+                _logger.LogWarning(
+                    "❌ [INVENTORY] NO items available for OrderNo={OrderNo}. Unavailable SKUs: [{Skus}]. Publishing StockUnavailable. [CorrelationId={CorrelationId}]",
+                    orderCreated.OrderNo,
+                    unavailableSkus,
+                    orderCreated.CorrelationId);
+
+                await context.Publish(new StockUnavailable
+                {
+                    OrderId = orderCreated.OrderId,
+                    UnavailableSkus = unavailableItems.Select(i => i.Sku).ToList(),
+                    Reason = $"All {unavailableItems.Count} items out of stock",
+                    CorrelationId = orderCreated.CorrelationId,
+                    CheckedAt = DateTime.UtcNow
+                });
+            }
+            // Scenario 3: PARTIAL availability (some items available, some not)
             else
             {
-                _logger.LogInformation(
-                    "💚 [INVENTORY] Standard order. Performing normal inventory check. [OrderNo={OrderNo}, CorrelationId={CorrelationId}]",
+                var availableSkus = string.Join(", ", availableItems.Select(i => i.Sku));
+                var unavailableSkus = string.Join(", ", unavailableItems.Select(i => i.Sku));
+                
+                _logger.LogWarning(
+                    "⚠️ [INVENTORY] PARTIAL availability for OrderNo={OrderNo}. Available: [{AvailableSkus}], Unavailable: [{UnavailableSkus}]. Publishing PartialStockReserved. [CorrelationId={CorrelationId}]",
                     orderCreated.OrderNo,
+                    availableSkus,
+                    unavailableSkus,
                     orderCreated.CorrelationId);
 
-                // Simulate inventory check
-                await Task.Delay(500); // Simulate normal check
-
-                // Publish StockReserved
-                await context.Publish(new StockReserved
+                await context.Publish(new PartialStockReserved
                 {
                     OrderId = orderCreated.OrderId,
+                    OrderNo = orderCreated.OrderNo,
                     OrderType = orderCreated.OrderType,
-                    Items = orderCreated.Items,
+                    AvailableItems = availableItems,
+                    UnavailableItems = unavailableItems,
                     Customer = orderCreated.Customer,
                     ShippingAddress = orderCreated.ShippingAddress,
                     CorrelationId = orderCreated.CorrelationId,
                     ReservedAt = DateTime.UtcNow
                 });
-
-                _logger.LogInformation(
-                    "💚 [INVENTORY] StockReserved published for OrderNo={OrderNo} [CorrelationId={CorrelationId}]",
-                    orderCreated.OrderNo,
-                    orderCreated.CorrelationId);
             }
-
-            await Task.CompletedTask;
         }
     }
 }

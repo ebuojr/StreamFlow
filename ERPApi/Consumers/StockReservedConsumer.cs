@@ -31,6 +31,7 @@ namespace ERPApi.Consumers
             try
             {
                 var order = await _context.Orders
+                    .Include(o => o.OrderItems)
                     .FirstOrDefaultAsync(o => o.Id == message.OrderId);
 
                 if (order == null)
@@ -40,12 +41,20 @@ namespace ERPApi.Consumers
                     return;
                 }
 
+                // Update order state
                 order.OrderState = "StockReserved";
+                
+                // Mark all items as Available since full stock is reserved
+                foreach (var item in order.OrderItems)
+                {
+                    item.Status = "Available";
+                }
+                
                 _context.Orders.Update(order);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Updated Order {OrderId} state to StockReserved (CorrelationId: {CorrelationId})",
-                    message.OrderId, message.CorrelationId);
+                _logger.LogInformation("Updated Order {OrderId} state to StockReserved, all {ItemCount} items marked as Available (CorrelationId: {CorrelationId})",
+                    message.OrderId, order.OrderItems.Count, message.CorrelationId);
             }
             catch (Exception ex)
             {
