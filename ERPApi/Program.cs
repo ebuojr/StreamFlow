@@ -1,6 +1,6 @@
 using ERPApi.Configuration;
+using ERPApi.Consumers;
 using ERPApi.DBContext;
-using ERPApi.Messaging;
 using ERPApi.Repository.Order;
 using ERPApi.Services.Order;
 using ERPApi.Workers;
@@ -57,12 +57,11 @@ builder.Services.AddMassTransit(x =>
     x.SetKebabCaseEndpointNameFormatter();
     
     // Register consumers
-    x.AddConsumer<CreateOrderRequestConsumer>();
+    x.AddConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>();
     x.AddConsumer<ERPApi.Consumers.StockReservedConsumer>();
     x.AddConsumer<ERPApi.Consumers.StockUnavailableConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPickedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
-    x.AddConsumer<ERPApi.Consumers.InvalidOrderConsumer>();
     
     // Note: FaultConsumer<T> instances are manually created in the erp-dead-letter endpoint
     // because MassTransit doesn't support registering open generic types
@@ -75,10 +74,11 @@ builder.Services.AddMassTransit(x =>
             h.Password(rabbitMqSettings.Password);
         });
 
-        // Configure the receive endpoint for CreateOrderRequest
+        // Configure the receive endpoint for CreateOrderRequest (Request/Reply pattern)
         cfg.ReceiveEndpoint("create-order-request", e =>
         {
-            e.ConfigureConsumer<CreateOrderRequestConsumer>(context);
+            e.ConfigureConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>(context);
+            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         });
         
         // Configure receive endpoints for state update events
@@ -104,12 +104,6 @@ builder.Services.AddMassTransit(x =>
         {
             e.ConfigureConsumer<ERPApi.Consumers.OrderPackedConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        });
-        
-        // Invalid Order queue for validation failures
-        cfg.ReceiveEndpoint("erp-invalid-orders", e =>
-        {
-            e.ConfigureConsumer<ERPApi.Consumers.InvalidOrderConsumer>(context);
         });
         
         // Dead Letter Channel - catch all faulted messages

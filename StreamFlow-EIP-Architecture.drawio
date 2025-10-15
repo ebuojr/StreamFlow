@@ -1,0 +1,342 @@
+<mxfile host="app.diagrams.net" modified="2025-10-15T00:00:00.000Z" agent="Draw.io" version="22.0.0" etag="StreamFlow-EIP" type="device">
+  <diagram name="StreamFlow - EIP Architecture" id="streamflow-eip">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Title -->
+        <mxCell id="title" value="StreamFlow - Enterprise Integration Patterns Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="800" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- Legend -->
+        <mxCell id="legend-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="280" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="&lt;b&gt;Legend - EIP Patterns&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="50" y="90" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-1" value="🔄 Content Enricher" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="120" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-2" value="🔀 Content-Based Router" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="145" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-3" value="📦 Transactional Outbox" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="170" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-4" value="⚠️ Dead Letter Channel (DLC)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="195" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-5" value="🔁 Retry + Error Handling" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="220" width="260" height="20" as="geometry" />
+        </mxCell>
+        
+        <!-- External Client -->
+        <mxCell id="client" value="&lt;b&gt;External Client&lt;/b&gt;&lt;br&gt;(HTTP Request)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- OrderApi -->
+        <mxCell id="orderapi" value="&lt;b&gt;OrderApi&lt;/b&gt;&lt;br&gt;(API Gateway)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="240" y="300" width="140" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="orderapi-detail" value="• REST Endpoints&lt;br&gt;• Request Validation&lt;br&gt;• Order Tracking" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="245" y="340" width="130" height="50" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: Client to OrderApi -->
+        <mxCell id="arrow1" value="POST /api/Order" style="endArrow=classic;html=1;rounded=0;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="client" target="orderapi">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="160" y="350" as="sourcePoint" />
+            <mxPoint x="240" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- RabbitMQ Message Broker -->
+        <mxCell id="rabbitmq" value="&lt;b&gt;RabbitMQ&lt;/b&gt;&lt;br&gt;Message Broker" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="600" y="80" width="600" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- ERPApi -->
+        <mxCell id="erpapi" value="&lt;b&gt;ERPApi&lt;/b&gt;&lt;br&gt;(Order Processing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="480" y="280" width="180" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="erpapi-eip1" value="🔄 &lt;b&gt;Content Enricher&lt;/b&gt;" style="text;html=1;strokeColor=#d79b00;fillColor=#ffe6cc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="490" y="320" width="160" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="erpapi-eip2" value="📦 &lt;b&gt;Transactional Outbox&lt;/b&gt;" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="490" y="350" width="160" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="erpapi-detail" value="• Order Validation&lt;br&gt;• Enrich Event Data&lt;br&gt;• Atomic DB+Outbox" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="490" y="380" width="160" height="35" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: OrderApi to ERPApi -->
+        <mxCell id="arrow2" value="CreateOrderRequest" style="endArrow=classic;html=1;rounded=0;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="orderapi" target="erpapi">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="380" y="350" as="sourcePoint" />
+            <mxPoint x="480" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- ERPGateway (Outbox Relay) -->
+        <mxCell id="erpgateway" value="&lt;b&gt;ERPGateway&lt;/b&gt;&lt;br&gt;(Outbox Relay)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="720" y="280" width="160" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="erpgateway-detail" value="📦 Polls Outbox Table&lt;br&gt;Publishes to RabbitMQ&lt;br&gt;🔁 Retry on Failure" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="725" y="320" width="150" height="55" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: ERPApi to ERPGateway (DB) -->
+        <mxCell id="arrow3" value="Writes to&lt;br&gt;Outbox Table" style="endArrow=classic;html=1;rounded=0;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;" edge="1" parent="1" source="erpapi" target="erpgateway">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="660" y="350" as="sourcePoint" />
+            <mxPoint x="720" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Queue: inventory-check -->
+        <mxCell id="queue-inventory" value="&lt;b&gt;inventory-check&lt;/b&gt;&lt;br&gt;(Queue)" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="180" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: ERPGateway to inventory-check -->
+        <mxCell id="arrow4" value="OrderCreated" style="endArrow=classic;html=1;rounded=0;fontSize=11;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="erpgateway" target="queue-inventory">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="800" y="240" as="sourcePoint" />
+            <mxPoint x="700" y="240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- InventoryService -->
+        <mxCell id="inventory" value="&lt;b&gt;InventoryService&lt;/b&gt;&lt;br&gt;(Worker)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="460" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory-eip" value="🔀 &lt;b&gt;Content-Based Router&lt;/b&gt;" style="text;html=1;strokeColor=#d79b00;fillColor=#ffe6cc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="610" y="495" width="180" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory-detail" value="💚 Priority Detection&lt;br&gt;• DK + High → Fast Track&lt;br&gt;• Standard → Normal Flow&lt;br&gt;Publishes: StockReserved" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="610" y="525" width="180" height="50" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: queue-inventory to InventoryService -->
+        <mxCell id="arrow5" value="Consumes" style="endArrow=classic;html=1;rounded=0;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="queue-inventory" target="inventory">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="700" y="300" as="sourcePoint" />
+            <mxPoint x="700" y="460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Queue: picking-stock-reserved (Priority Queue) -->
+        <mxCell id="queue-picking" value="&lt;b&gt;picking-stock-reserved&lt;/b&gt;&lt;br&gt;(Priority Queue 🔢)" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="900" y="180" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: InventoryService to picking queue -->
+        <mxCell id="arrow6" value="StockReserved&lt;br&gt;(with Priority)" style="endArrow=classic;html=1;rounded=0;fontSize=10;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="inventory" target="queue-picking">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="800" y="490" as="sourcePoint" />
+            <mxPoint x="900" y="210" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="850" y="490" />
+              <mxPoint x="850" y="210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- PickingService -->
+        <mxCell id="picking" value="&lt;b&gt;PickingService&lt;/b&gt;&lt;br&gt;(Worker)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="880" y="460" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="picking-detail" value="📦 Pick Items from Warehouse&lt;br&gt;🔢 Processes by Priority&lt;br&gt;Publishes: OrderPicked" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="890" y="495" width="170" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: queue-picking to PickingService -->
+        <mxCell id="arrow7" value="Consumes&lt;br&gt;(Priority Order)" style="endArrow=classic;html=1;rounded=0;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="queue-picking" target="picking">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="970" y="300" as="sourcePoint" />
+            <mxPoint x="970" y="460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Queue: packing-order-picked -->
+        <mxCell id="queue-packing" value="&lt;b&gt;packing-order-picked&lt;/b&gt;&lt;br&gt;(Queue)" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="180" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: PickingService to packing queue -->
+        <mxCell id="arrow8" value="OrderPicked" style="endArrow=classic;html=1;rounded=0;fontSize=11;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="picking" target="queue-packing">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1060" y="485" as="sourcePoint" />
+            <mxPoint x="1120" y="210" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="1100" y="485" />
+              <mxPoint x="1100" y="210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- PackingService -->
+        <mxCell id="packing" value="&lt;b&gt;PackingService&lt;/b&gt;&lt;br&gt;(Worker)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="460" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="packing-detail" value="📮 Pack Order for Shipping&lt;br&gt;Generate Shipping Label&lt;br&gt;Publishes: OrderPacked" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="495" width="170" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: queue-packing to PackingService -->
+        <mxCell id="arrow9" value="Consumes" style="endArrow=classic;html=1;rounded=0;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="queue-packing" target="packing">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1190" y="300" as="sourcePoint" />
+            <mxPoint x="1190" y="460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Order Completion -->
+        <mxCell id="completion" value="&lt;b&gt;Order Complete&lt;/b&gt;&lt;br&gt;Ready for Shipment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1320" y="470" width="140" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrow: PackingService to Completion -->
+        <mxCell id="arrow10" value="OrderPacked" style="endArrow=classic;html=1;rounded=0;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="packing" target="completion">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1280" y="510" as="sourcePoint" />
+            <mxPoint x="1320" y="510" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Dead Letter Channels Section -->
+        <mxCell id="dlc-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;dashed=1;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="580" y="640" width="700" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="dlc-title" value="⚠️ &lt;b&gt;Dead Letter Channels (DLC) - Error Handling&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="700" y="650" width="460" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- DLC Queues -->
+        <mxCell id="dlc-erp" value="&lt;b&gt;erp-dead-letter&lt;/b&gt;&lt;br&gt;(DLC Queue)" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="700" width="110" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="dlc-inventory" value="&lt;b&gt;inventory-dead-letter&lt;/b&gt;&lt;br&gt;(DLC Queue)" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="740" y="700" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="dlc-picking" value="&lt;b&gt;picking-dead-letter&lt;/b&gt;&lt;br&gt;(DLC Queue)" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="890" y="700" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="dlc-packing" value="&lt;b&gt;packing-dead-letter&lt;/b&gt;&lt;br&gt;(DLC Queue)" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="700" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="dlc-note" value="🔁 Retry: 3 attempts, 5s intervals&lt;br&gt;⚠️ After max retries → DLC for manual review" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="710" width="100" height="50" as="geometry" />
+        </mxCell>
+        
+        <!-- Retry arrows from services to DLC -->
+        <mxCell id="arrow-dlc1" value="Failed&lt;br&gt;Messages" style="endArrow=classic;html=1;rounded=0;fontSize=9;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="inventory" target="dlc-inventory">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="650" y="600" as="sourcePoint" />
+            <mxPoint x="700" y="700" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="650" y="620" />
+              <mxPoint x="800" y="620" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow-dlc2" value="Failed&lt;br&gt;Messages" style="endArrow=classic;html=1;rounded=0;fontSize=9;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="picking" target="dlc-picking">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="925" y="580" as="sourcePoint" />
+            <mxPoint x="950" y="700" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="925" y="620" />
+              <mxPoint x="950" y="620" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow-dlc3" value="Failed&lt;br&gt;Messages" style="endArrow=classic;html=1;rounded=0;fontSize=9;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="packing" target="dlc-packing">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1145" y="580" as="sourcePoint" />
+            <mxPoint x="1100" y="700" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="1145" y="620" />
+              <mxPoint x="1100" y="620" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Database -->
+        <mxCell id="database" value="&lt;b&gt;Orders Database&lt;/b&gt;&lt;br&gt;(SQLite)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="480" width="100" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Database arrow from ERPApi -->
+        <mxCell id="arrow-db" value="Store Order&lt;br&gt;+ Outbox" style="endArrow=classic;html=1;rounded=0;fontSize=10;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;" edge="1" parent="1" source="erpapi" target="database">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="480" y="385" as="sourcePoint" />
+            <mxPoint x="440" y="520" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="440" y="385" />
+              <mxPoint x="440" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Correlation ID flow -->
+        <mxCell id="correlation-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;dashed=1;opacity=20;" vertex="1" parent="1">
+          <mxGeometry x="40" y="820" width="1420" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="correlation-title" value="🔗 &lt;b&gt;Correlation ID&lt;/b&gt; - End-to-End Request Tracing" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="400" y="830" width="800" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="correlation-flow" value="Client Request → OrderApi → ERPApi → InventoryService → PickingService → PackingService → Completion" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="100" y="865" width="1300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="correlation-note" value="All services log with same CorrelationId for distributed tracing and debugging" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="400" y="890" width="800" height="20" as="geometry" />
+        </mxCell>
+        
+        <!-- Key Features Box -->
+        <mxCell id="features-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="960" width="1420" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="features-title" value="&lt;b&gt;Key Enterprise Integration Patterns Implemented&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="400" y="975" width="800" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- Feature columns -->
+        <mxCell id="feature1" value="&lt;b&gt;1. Content Enricher&lt;/b&gt;&lt;br&gt;ERPApi enriches OrderCreated with:&lt;br&gt;• Customer details&lt;br&gt;• Item information&lt;br&gt;• Shipping address&lt;br&gt;• Priority calculation&lt;br&gt;→ Downstream services need no HTTP calls" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1020" width="280" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature2" value="&lt;b&gt;2. Content-Based Router&lt;/b&gt;&lt;br&gt;InventoryService routes by:&lt;br&gt;• OrderType: DK vs Standard&lt;br&gt;• Priority: High vs Normal&lt;br&gt;→ High-priority DK orders fast-tracked&lt;br&gt;→ Different processing paths" style="text;html=1;strokeColor=#d79b00;fillColor=#ffe6cc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="360" y="1020" width="280" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature3" value="&lt;b&gt;3. Transactional Outbox&lt;/b&gt;&lt;br&gt;Guarantees atomicity:&lt;br&gt;• Order + Outbox in 1 transaction&lt;br&gt;• ERPGateway polls outbox&lt;br&gt;• Publishes to RabbitMQ&lt;br&gt;→ No lost messages&lt;br&gt;→ Eventual consistency" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="1020" width="280" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature4" value="&lt;b&gt;4. Dead Letter Channel&lt;/b&gt;&lt;br&gt;Fault tolerance:&lt;br&gt;• 3 retry attempts, 5s intervals&lt;br&gt;• After max retries → DLC queue&lt;br&gt;• FaultConsumer logs failures&lt;br&gt;→ Manual intervention possible&lt;br&gt;→ System stays resilient" style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="960" y="1020" width="280" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature5" value="&lt;b&gt;5. Priority Queue&lt;/b&gt;&lt;br&gt;picking-stock-reserved:&lt;br&gt;• x-max-priority: 10&lt;br&gt;• High-priority orders first&lt;br&gt;• Fair processing with prefetch&lt;br&gt;→ Critical orders processed faster" style="text;html=1;strokeColor=#9673a6;fillColor=#e1d5e7;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="1020" width="180" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- Version info -->
+        <mxCell id="version" value="StreamFlow v1.0 | MassTransit 8.5.4 | RabbitMQ | .NET 10.0" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="600" y="1170" width="400" height="20" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

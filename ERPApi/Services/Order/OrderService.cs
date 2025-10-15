@@ -35,29 +35,6 @@ namespace ERPApi.Services.Order
             if (validationErrors.Any())
             {
                 logger.LogWarning("Order validation failed. Errors: {Errors}", string.Join(", ", validationErrors));
-                
-                // Publish InvalidOrder event
-                var invalidOrder = new InvalidOrder
-                {
-                    OrderId = order.Id,
-                    Reason = "Validation failed",
-                    ValidationErrors = validationErrors,
-                    RawPayload = JsonSerializer.Serialize(order),
-                    Timestamp = DateTime.UtcNow,
-                    CorrelationId = correlationId
-                };
-                
-                // Store invalid order in outbox for tracking
-                context.OutboxMessages.Add(new Outbox
-                {
-                    Id = Guid.NewGuid(),
-                    MessageType = nameof(InvalidOrder),
-                    Payload = JsonSerializer.Serialize(invalidOrder),
-                    CreatedAt = DateTime.UtcNow,
-                    RetryCount = 0
-                });
-                
-                await context.SaveChangesAsync();
                 throw new ArgumentException($"Order validation failed: {string.Join(", ", validationErrors)}");
             }
 

@@ -108,7 +108,6 @@ namespace ERPApi.Workers
             var type = messageType switch
             {
                 "OrderCreated" => typeof(Contracts.Events.OrderCreated),
-                "InvalidOrder" => typeof(Contracts.Events.InvalidOrder),
                 _ => throw new InvalidOperationException($"Unknown message type: {messageType}")
             };
 
