@@ -7,25 +7,33 @@ namespace Entities.Model
         public Guid Id { get; set; }
         public int OrderNo { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string OrderState { get; set; }
-        public string CountryCode { get; set; }
-        public bool? IsPreOrder { get; set; }
+        public string OrderState { get; set; } = "Pending";
+        public string CountryCode { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
+        public Guid CustomerId { get; set; }
         public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
-        public Customer Customer { get; set; }
-        public Payment Payment { get; set; }
-        public Address ShippingAddress { get; set; }
+        public Customer Customer { get; set; } = null!;
+        public Payment Payment { get; set; } = null!;
+        public Address ShippingAddress { get; set; } = null!;
 
+        /// <summary>
+        /// Determines order type based on shipping country.
+        /// DK (Denmark) orders are Priority, all others are Standard.
+        /// </summary>
         public string FindOrderType()
         {
-            if (IsPreOrder == true)
-                return "pre-Order";
+            return ShippingAddress?.Country?.Trim().Equals("DK", StringComparison.OrdinalIgnoreCase) == true
+                ? "Priority"
+                : "Standard";
+        }
 
-            var cc = CountryCode;
-            if (!string.IsNullOrWhiteSpace(cc) && string.Equals(cc.Trim(), "DK", StringComparison.OrdinalIgnoreCase))
-                return "priority";
-
-            return "standard";
+        /// <summary>
+        /// Gets the priority level for RabbitMQ priority queue.
+        /// Priority orders (DK) = 9, Standard = 1
+        /// </summary>
+        public byte GetPriority()
+        {
+            return FindOrderType() == "Priority" ? (byte)9 : (byte)1;
         }
     }
 }

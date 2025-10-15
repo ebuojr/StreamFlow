@@ -11,23 +11,19 @@ namespace ERPApi.Repository.Order
             _context = context;
         }
 
-        public async Task<int> CreateOrderAsync(Entities.Model.Order order)
-        {
-            // Generate incremental OrderNo (max + 1) in a transaction to avoid race conditions
-            using var tx = await _context.Database.BeginTransactionAsync();
+    public async Task<int> CreateOrderAsync(Entities.Model.Order order)
+    {
+        // NOTE: Transaction is managed by the service layer (for transactional outbox pattern)
+        // Generate incremental OrderNo (max + 1)
+        var maxOrderNo = await _context.Orders.MaxAsync(o => (int?)o.OrderNo) ?? 0;
+        int newOrderNo = maxOrderNo >= 1000 ? (maxOrderNo + 1) : 1000;
 
-            var maxOrderNo = await _context.Orders.MaxAsync(o => (int?)o.OrderNo) ?? 0;
-            int newOrderNo = maxOrderNo >= 1000 ? (maxOrderNo + 1) : 1000;
+        order.OrderNo = newOrderNo;
+        _context.Orders.Add(order);
+        // NOTE: SaveChanges is called by service layer after adding outbox message
 
-            order.OrderNo = newOrderNo;
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
-
-            await tx.CommitAsync();
-            return newOrderNo;
-        }
-
-        public async Task<IEnumerable<Entities.Model.Order>> GetAllOrders()
+        return newOrderNo;
+    }        public async Task<IEnumerable<Entities.Model.Order>> GetAllOrders()
         {
             var orders = await _context.Orders
                 .Include(o => o.OrderItems)
@@ -58,15 +54,12 @@ namespace ERPApi.Repository.Order
 
         public async Task<bool> UpdateOrderState(Guid id, string state)
         {
-            using var tx = await _context.Database.BeginTransactionAsync();
-
             var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id);
             if (order == null)
                 return false;
 
             order.OrderState = state;
             await _context.SaveChangesAsync();
-            await tx.CommitAsync();
             return true;
         }
 
@@ -77,8 +70,6 @@ namespace ERPApi.Repository.Order
 
         public async Task MarkOrderSentToPicking(int orderNo)
         {
-            using var tx = await _context.Database.BeginTransactionAsync();
-
             var order = await _context.Orders.FirstOrDefaultAsync(o => o.OrderNo == orderNo);
             if (order != null)
             {
@@ -90,7 +81,6 @@ namespace ERPApi.Repository.Order
                 };
                 _context.OrderSentToPickings.Add(orderSent);
                 await _context.SaveChangesAsync();
-                await tx.CommitAsync();
             }
         }
     }

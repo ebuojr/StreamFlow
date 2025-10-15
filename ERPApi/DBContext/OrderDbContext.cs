@@ -12,6 +12,8 @@ namespace ERPApi.DBContext
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<OrderSentToPicking> OrderSentToPickings { get; set; }
+        public DbSet<Outbox> OutboxMessages { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -71,6 +73,16 @@ namespace ERPApi.DBContext
                 osp.HasKey(o => o.Id);
                 osp.Property(o => o.OrderNo).IsRequired();
                 osp.Property(o => o.SentTime).IsRequired();
+            });
+
+            modelBuilder.Entity<Outbox>(outbox =>
+            {
+                outbox.HasKey(o => o.Id);
+                outbox.Property(o => o.MessageType).IsRequired().HasMaxLength(100);
+                outbox.Property(o => o.Payload).IsRequired();
+                outbox.Property(o => o.CreatedAt).IsRequired();
+                outbox.HasIndex(o => o.ProcessedAt); // For querying unprocessed messages
+                outbox.HasIndex(o => o.CreatedAt); // For ordering
             });
         }
     }

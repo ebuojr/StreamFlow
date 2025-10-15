@@ -1,23 +1,73 @@
-var builder = WebApplication.CreateBuilder(args);
+using MassTransit;
+using PackingService.Consumers;
+using Serilog;
+using Serilog.Events;
 
-// Add services to the container.
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Service", "PackingService")
+    .Enrich.WithCorrelationId()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        path: "logs/packingservice-.log",
+        rollingInterval: RollingInterval.Day,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}",
+        retainedFileCountLimit: 7)
+    .CreateLogger();
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+try
 {
-    app.MapOpenApi();
+    Log.Information("Starting PackingService");
+
+    var builder = Host.CreateApplicationBuilder(args);
+
+    // Use Serilog for logging
+    builder.Services.AddSerilog();
+
+    // MassTransit with RabbitMQ
+    builder.Services.AddMassTransit(x =>
+    {
+        // Register consumers
+        x.AddConsumer<OrderPickedConsumer>();
+
+        x.UsingRabbitMq((context, cfg) =>
+        {
+            cfg.Host(builder.Configuration["RabbitMQ:Host"] ?? "localhost", "/", h =>
+            {
+                h.Username(builder.Configuration["RabbitMQ:Username"] ?? "guest");
+                h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
+            });
+
+            // Configure receive endpoint for packing
+            cfg.ReceiveEndpoint("packing-order-picked", e =>
+            {
+                e.ConfigureConsumer<OrderPickedConsumer>(context);
+
+                // Standard prefetch count (no priority queue needed for packing)
+                e.PrefetchCount = 16;
+
+                // Retry policy: 3 retries with 5 second interval
+                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            });
+        });
+    });
+
+    // Register Worker
+    builder.Services.AddHostedService<PackingService.Worker>();
+
+    var host = builder.Build();
+
+    Log.Information("PackingService started successfully");
+    await host.RunAsync();
 }
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();
+catch (Exception ex)
+{
+    Log.Fatal(ex, "PackingService terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
