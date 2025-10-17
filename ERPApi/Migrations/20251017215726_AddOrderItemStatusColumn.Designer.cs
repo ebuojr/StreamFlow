@@ -11,14 +11,14 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPApi.Migrations
 {
     [DbContext(typeof(OrderDbContext))]
-    [Migration("20251015185817_AddOrderItemStatus")]
-    partial class AddOrderItemStatus
+    [Migration("20251017215726_AddOrderItemStatusColumn")]
+    partial class AddOrderItemStatusColumn
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.0-rc.1.25451.107");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.10");
 
             modelBuilder.Entity("Entities.Model.Order", b =>
                 {
@@ -80,7 +80,10 @@ namespace ERPApi.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Pending");
 
                     b.Property<decimal>("TotalPrice")
                         .HasColumnType("TEXT");

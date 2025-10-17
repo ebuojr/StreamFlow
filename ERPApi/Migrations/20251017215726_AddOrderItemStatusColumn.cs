@@ -5,7 +5,7 @@
 namespace ERPApi.Migrations
 {
     /// <inheritdoc />
-    public partial class AddOrderItemStatus : Migration
+    public partial class AddOrderItemStatusColumn : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

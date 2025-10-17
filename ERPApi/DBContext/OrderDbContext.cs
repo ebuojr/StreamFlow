@@ -66,6 +66,12 @@ namespace ERPApi.DBContext
                 item.Property(i => i.Sku).IsRequired();
                 item.Property(i => i.Name).IsRequired();
                 item.Property<Guid>("OrderId");
+                
+                // Configure Status property with default value
+                item.Property(i => i.Status)
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Pending");
             });
 
             modelBuilder.Entity<OrderSentToPicking>(osp =>
