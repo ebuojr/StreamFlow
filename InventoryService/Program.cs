@@ -41,6 +41,15 @@ builder.Services.AddMassTransit(x =>
             h.Password("guest");
         });
 
+        // ✅ EXPLICITLY CONFIGURE TOPIC EXCHANGES (FIX FOR FANOUT ISSUE)
+        cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
+        cfg.Publish<Contracts.Events.StockUnavailable>(x => x.ExchangeType = "topic");
+        cfg.Publish<Contracts.Events.PartialStockReserved>(x => x.ExchangeType = "topic");
+        
+        // ✅ CONFIGURE CONSUME TOPOLOGY (for events we consume)
+        cfg.Message<Contracts.Events.OrderCreated>(x => x.SetEntityName("Contracts.Events:OrderCreated"));
+        cfg.Publish<Contracts.Events.OrderCreated>(x => x.ExchangeType = "topic");
+
         // Configure retry policy for all consumers
         cfg.UseMessageRetry(r => r.Incremental(3, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)));
 

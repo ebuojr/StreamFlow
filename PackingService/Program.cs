@@ -41,6 +41,13 @@ try
                 h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
             });
 
+            // ✅ EXPLICITLY CONFIGURE TOPIC EXCHANGES (FIX FOR FANOUT ISSUE)
+            cfg.Publish<Contracts.Events.OrderPacked>(x => x.ExchangeType = "topic");
+            
+            // ✅ CONFIGURE CONSUME TOPOLOGY (for events we consume)
+            cfg.Message<Contracts.Events.OrderPicked>(x => x.SetEntityName("Contracts.Events:OrderPicked"));
+            cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
+
             // Configure receive endpoint for packing
             cfg.ReceiveEndpoint("packing-order-picked", e =>
             {

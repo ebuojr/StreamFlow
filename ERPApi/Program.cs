@@ -75,6 +75,24 @@ builder.Services.AddMassTransit(x =>
             h.Password(rabbitMqSettings.Password);
         });
 
+        // ✅ EXPLICITLY CONFIGURE TOPIC EXCHANGES (FIX FOR FANOUT ISSUE)
+        // MassTransit 8.x requires explicit exchange type configuration
+        
+        // Configure exchanges for events we PUBLISH
+        cfg.Publish<Contracts.Events.OrderCreated>(x => x.ExchangeType = "topic");
+        cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
+        cfg.Publish<Contracts.Events.StockUnavailable>(x => x.ExchangeType = "topic");
+        cfg.Publish<Contracts.Events.PartialStockReserved>(x => x.ExchangeType = "topic");
+        cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
+        cfg.Publish<Contracts.Events.OrderPacked>(x => x.ExchangeType = "topic");
+        
+        // Configure exchanges for events we CONSUME (tell consumers to use topic, not fanout)
+        cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
+        cfg.Message<Contracts.Events.StockUnavailable>(x => x.SetEntityName("Contracts.Events:StockUnavailable"));
+        cfg.Message<Contracts.Events.PartialStockReserved>(x => x.SetEntityName("Contracts.Events:PartialStockReserved"));
+        cfg.Message<Contracts.Events.OrderPicked>(x => x.SetEntityName("Contracts.Events:OrderPicked"));
+        cfg.Message<Contracts.Events.OrderPacked>(x => x.SetEntityName("Contracts.Events:OrderPacked"));
+
         // Configure the receive endpoint for CreateOrderRequest (Request/Reply pattern)
         cfg.ReceiveEndpoint("create-order-request", e =>
         {

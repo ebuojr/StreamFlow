@@ -42,6 +42,16 @@ try
                 h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
             });
 
+            // ✅ EXPLICITLY CONFIGURE TOPIC EXCHANGES (FIX FOR FANOUT ISSUE)
+            cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
+            
+            // ✅ CONFIGURE CONSUME TOPOLOGY (for events we consume)
+            cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
+            cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
+            
+            cfg.Message<Contracts.Events.PartialStockReserved>(x => x.SetEntityName("Contracts.Events:PartialStockReserved"));
+            cfg.Publish<Contracts.Events.PartialStockReserved>(x => x.ExchangeType = "topic");
+
             // Configure priority queue for picking (full stock reserved)
             cfg.ReceiveEndpoint("picking-stock-reserved", e =>
             {
