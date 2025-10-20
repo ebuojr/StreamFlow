@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" version="28.2.7">
+  <diagram name="Page-1" id="SqhWsQapFHfFmKpW6V85">
+    <mxGraphModel dx="2066" dy="1137" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Order Api -->
+        <mxCell id="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="3" target="5" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="260" y="300" />
+              <mxPoint x="260" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3" value="&lt;div&gt;Order Api&lt;/div&gt;[create-new-order]" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="200" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Request-Reply Queues -->
+        <mxCell id="4" value="create-order-response" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;rotation=0;" vertex="1" parent="1">
+          <mxGeometry x="318.75" y="330" width="120" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="5" value="create-order-request" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;rotation=0;" vertex="1" parent="1">
+          <mxGeometry x="320" y="290" width="118.75" height="20" as="geometry" />
+        </mxCell>
+        
+        <!-- ERP Api -->
+        <mxCell id="6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" source="8" target="10" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1520" y="240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="8" target="4" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="340" />
+              <mxPoint x="500" y="340" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="8" value="ERP Api" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="280" width="240" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Database -->
+        <mxCell id="9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;dashed=1;dashPattern=8 8;" edge="1" source="10" target="12" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="10" value="order.db" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="1">
+          <mxGeometry x="840" y="280" width="80" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Outbox Worker -->
+        <mxCell id="11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="12" target="101" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1080" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="12" value="OutboxPublisherWorker" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="300" width="160" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1.011;entryY=0.755;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" source="4" target="3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=-0.006;entryY=0.25;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" source="5" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- TOPIC EXCHANGE: OrderCreated -->
+        <mxCell id="101" value="OrderCreated" style="shape=mxgraph.eip.publish_subscribe;html=1;strokeColor=#50C878;strokeWidth=2;fillColor=#c0f5a9;fontSize=10;fontStyle=1;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1025" y="420" width="110" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="101" target="16" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1080" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Inventory Check Queue -->
+        <mxCell id="16" value="inventory-check" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="560" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <!-- Content-Based Router (InventoryService) -->
+        <mxCell id="17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="21" target="102" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1350" y="620" />
+              <mxPoint x="1350" y="690" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="21" target="104" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1350" y="620" />
+              <mxPoint x="1350" y="780" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="21" target="104" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="21" target="26" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1240" y="580" />
+              <mxPoint x="1240" y="540" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="103" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="16" target="21" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="21" value="" style="html=1;strokeWidth=2;outlineConnect=0;dashed=0;align=center;fontSize=8;fillColor=#c0f5a9;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.eip.content_based_router;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="590" width="100" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- TOPIC EXCHANGE: StockReserved -->
+        <mxCell id="102" value="StockReserved" style="shape=mxgraph.eip.publish_subscribe;html=1;strokeColor=#50C878;strokeWidth=2;fillColor=#c0f5a9;fontSize=10;fontStyle=1;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1390" y="665" width="110" height="50" as="geometry" />
+        </mxCell>
+        
+        <!-- TOPIC EXCHANGE: PartialStockReserved -->
+        <mxCell id="104" value="PartialStockReserved" style="shape=mxgraph.eip.publish_subscribe;html=1;strokeColor=#50C878;strokeWidth=2;fillColor=#c0f5a9;fontSize=10;fontStyle=1;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1390" y="755" width="110" height="50" as="geometry" />
+        </mxCell>
+        
+        <!-- TOPIC EXCHANGE: StockUnavailable -->
+        <mxCell id="105" value="StockUnavailable" style="shape=mxgraph.eip.publish_subscribe;html=1;strokeColor=#50C878;strokeWidth=2;fillColor=#c0f5a9;fontSize=10;fontStyle=1;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1390" y="845" width="110" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="21" target="105" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1390" y="870" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="1350" y="620" />
+              <mxPoint x="1350" y="870" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Inventory Dead Letter -->
+        <mxCell id="26" value="inventory-dead-letter" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.deadLetterChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="530" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <!-- Picking Queues (Priority Queues) -->
+        <mxCell id="22" value="picking-stock-reserved [x-max-priority=10]" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;fontSize=8;shape=mxgraph.eip.messageChannel;html=1;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#FFD700;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="680" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="picking-partial-stock-reserved [x-max-priority=10]" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;fontSize=8;shape=mxgraph.eip.messageChannel;html=1;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#FFD700;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="770" width="180" height="20" as="geometry" />
+        </mxCell>
+        
+        <!-- Connections from Topic Exchanges to Picking Queues -->
+        <mxCell id="106" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="102" target="22" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="107" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="104" target="23" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- PickingService -->
+        <mxCell id="108" value="PickingService" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5a9f5;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="710" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="109" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="22" target="108" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="110" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="23" target="108" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- TOPIC EXCHANGE: OrderPicked -->
+        <mxCell id="111" value="OrderPicked" style="shape=mxgraph.eip.publish_subscribe;html=1;strokeColor=#50C878;strokeWidth=2;fillColor=#c0f5a9;fontSize=10;fontStyle=1;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="820" width="110" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="112" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="108" target="111" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- Packing Queue -->
+        <mxCell id="113" value="packing-order-picked" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="920" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="111" target="113" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- PackingService -->
+        <mxCell id="115" value="PackingService" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5a9f5;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="990" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="116" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="113" target="115" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- TOPIC EXCHANGE: OrderPacked -->
+        <mxCell id="117" value="OrderPacked" style="shape=mxgraph.eip.publish_subscribe;html=1;strokeColor=#50C878;strokeWidth=2;fillColor=#c0f5a9;fontSize=10;fontStyle=1;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="1100" width="110" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="118" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="115" target="117" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- ERP State Update Queues -->
+        <mxCell id="200" value="erp-stock-reserved" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="560" y="680" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="201" value="erp-partial-stock-reserved" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="560" y="770" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="202" value="erp-stock-unavailable" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="560" y="860" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="203" value="erp-order-picked" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="560" y="920" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="204" value="erp-order-packed" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.messageChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="560" y="1020" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <!-- Connections from Topic Exchanges to ERP Queues -->
+        <mxCell id="205" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="102" target="200" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1445" y="650" />
+              <mxPoint x="800" y="650" />
+              <mxPoint x="800" y="690" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="206" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="104" target="201" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1445" y="740" />
+              <mxPoint x="780" y="740" />
+              <mxPoint x="780" y="780" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="207" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="105" target="202" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1445" y="830" />
+              <mxPoint x="760" y="830" />
+              <mxPoint x="760" y="870" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="208" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="111" target="203" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1920" y="900" />
+              <mxPoint x="740" y="900" />
+              <mxPoint x="740" y="930" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="209" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="117" target="204" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1920" y="1080" />
+              <mxPoint x="720" y="1080" />
+              <mxPoint x="720" y="1030" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Connections from ERP queues back to ERP Api -->
+        <mxCell id="210" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="200" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="690" />
+              <mxPoint x="500" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="211" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="201" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="480" y="780" />
+              <mxPoint x="480" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="212" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="202" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="460" y="870" />
+              <mxPoint x="460" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="213" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="203" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="440" y="930" />
+              <mxPoint x="440" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="214" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="204" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="1030" />
+              <mxPoint x="420" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- ERP Dead Letter Channel -->
+        <mxCell id="215" value="erp-dead-letter" style="strokeWidth=1;outlineConnect=0;dashed=0;align=center;html=1;fontSize=8;shape=mxgraph.eip.deadLetterChannel;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="560" y="560" width="160" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="216" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;dashed=1;dashPattern=8 8;" edge="1" source="215" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="500" />
+              <mxPoint x="640" y="500" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Event/Exchange Indicators -->
+        <mxCell id="27" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0;exitY=0.5;endArrow=none;dashed=0;html=1;strokeColor=#808080;strokeWidth=2;" edge="1" source="29" target="28" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="28" value="" style="strokeWidth=2;dashed=0;align=center;fontSize=8;shape=ellipse;fillColor=#808080;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1066" y="480" width="12" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="29" value="E" style="strokeWidth=2;dashed=0;align=center;fontSize=8;shape=rect;fillColor=#83BEFF;fontStyle=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1082" y="498" width="12" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0;exitY=0.5;endArrow=none;dashed=0;html=1;strokeColor=#808080;strokeWidth=2;" edge="1" source="32" target="31" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="31" value="" style="strokeWidth=2;dashed=0;align=center;fontSize=8;shape=ellipse;fillColor=#808080;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="600" width="12" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="E" style="strokeWidth=2;dashed=0;align=center;fontSize=8;shape=rect;fillColor=#83BEFF;fontStyle=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1326" y="618" width="12" height="12" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

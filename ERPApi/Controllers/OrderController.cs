@@ -92,25 +92,25 @@ namespace ERPApi.Controllers
             }
         }
 
-        [HttpPut("{id}/state")]
-        public async Task<IActionResult> UpdateOrderState(Guid id, [FromBody] string state)
-        {
-            if (string.IsNullOrWhiteSpace(state))
-                return BadRequest("Status cannot be null or empty.");
+        //[HttpPut("{id}/state")]
+        //public async Task<IActionResult> UpdateOrderState(Guid id, [FromBody] string state)
+        //{
+        //    if (string.IsNullOrWhiteSpace(state))
+        //        return BadRequest("Status cannot be null or empty.");
 
-            try
-            {
-                var isUpdated = await _orderService.UpdateOrderState(id, state);
-                if (!isUpdated)
-                    return NotFound($"Order with ID {id} not found.");
+        //    try
+        //    {
+        //        var isUpdated = await _orderService.UpdateOrderState(id, state);
+        //        if (!isUpdated)
+        //            return NotFound($"Order with ID {id} not found.");
 
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
+        //        return NoContent();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, $"Internal server error: {ex.Message}");
+        //    }
+        //}
 
         [HttpGet("{id}/tracking")]
         public async Task<IActionResult> GetOrderTracking(Guid id)

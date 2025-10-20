@@ -134,7 +134,12 @@ builder.Services.AddMassTransit(x =>
         // Dead Letter Channel - catch all faulted messages
         cfg.ReceiveEndpoint("erp-dead-letter", e =>
         {
-            // Configure fault consumers for all event types
+            // Fault consumer for Request-Reply pattern
+            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>(
+                context.GetRequiredService<OrderDbContext>(),
+                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>>>()));
+            
+            // Fault consumers for event-driven state updates
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>(
                 context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>>>()));
@@ -142,6 +147,14 @@ builder.Services.AddMassTransit(x =>
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>(
                 context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>>>()));
+            
+            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>(
+                context.GetRequiredService<OrderDbContext>(),
+                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>>>()));
+            
+            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.PartialStockReserved>(
+                context.GetRequiredService<OrderDbContext>(),
+                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.PartialStockReserved>>>()));
             
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>(
                 context.GetRequiredService<OrderDbContext>(),

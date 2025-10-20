@@ -71,7 +71,7 @@ namespace ERPApi.Workers
                 {
                     // Deserialize and publish the message
                     var eventObject = DeserializeMessage(message.MessageType, message.Payload);
-                    
+
                     await publishEndpoint.Publish(eventObject, eventObject.GetType(), cancellationToken);
 
                     // Mark as processed

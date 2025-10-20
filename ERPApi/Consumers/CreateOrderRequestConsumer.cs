@@ -1,13 +1,19 @@
 using Contracts;
 using ERPApi.Services.Order;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERPApi.Consumers
 {
     /// <summary>
     /// Consumes CreateOrderRequest messages and creates orders using Request/Reply pattern.
     /// Responds with CreateOrderResponse containing order number or error details.
-    /// MassTransit handles retries and DLC automatically.
+    /// 
+    /// Error Handling Strategy:
+    /// - Transient errors (DB deadlocks, connection issues): Throws to trigger MassTransit retry (3 attempts)
+    /// - Business errors (validation, not found): Responds with error, NO retry (prevents wasteful retries)
+    /// 
+    /// EIP Pattern: Request-Reply with selective retry strategy
     /// </summary>
     public class CreateOrderRequestConsumer : IConsumer<CreateOrderRequest>
     {
@@ -43,12 +49,20 @@ namespace ERPApi.Consumers
                     ErrorMessage = string.Empty
                 });
             }
-            catch (Exception ex)
+            catch (DbUpdateException ex) // Transient database errors (deadlocks, connection issues)
             {
-                _logger.LogError(ex, "Failed to create order for Customer {CustomerId} (CorrelationId: {CorrelationId})",
+                _logger.LogError(ex, "Transient DB error creating order for Customer {CustomerId} - will retry (CorrelationId: {CorrelationId})",
+                    request.Order.CustomerId, request.CorrelationId);
+                
+                // Rethrow to trigger MassTransit retry policy for transient errors
+                throw;
+            }
+            catch (Exception ex) // Business validation errors (non-retryable)
+            {
+                _logger.LogError(ex, "Business error creating order for Customer {CustomerId} - no retry (CorrelationId: {CorrelationId})",
                     request.Order.CustomerId, request.CorrelationId);
 
-                // Respond with failure - let MassTransit retry policy handle DLC
+                // Respond with error - client needs immediate feedback
                 await context.RespondAsync(new CreateOrderResponse
                 {
                     OrderNo = 0,
@@ -56,8 +70,8 @@ namespace ERPApi.Consumers
                     ErrorMessage = ex.Message + (ex.InnerException != null ? " | " + ex.InnerException.Message : string.Empty)
                 });
 
-                // Rethrow to trigger MassTransit retry policy and eventual DLC
-                throw;
+                // ✅ DON'T throw - request complete, client already notified
+                // No point retrying business validation errors (customer not found, invalid SKU, etc.)
             }
         }
     }
