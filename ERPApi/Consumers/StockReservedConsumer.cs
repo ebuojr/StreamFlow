@@ -25,8 +25,8 @@ namespace ERPApi.Consumers
         {
             var message = context.Message;
             
-            _logger.LogInformation("Received StockReserved event for Order {OrderId} (CorrelationId: {CorrelationId})",
-                message.OrderId, message.CorrelationId);
+            _logger.LogInformation("Received StockReserved event for Order {OrderId} | Partial: {IsPartial} ({Reserved}/{Requested}) (CorrelationId: {CorrelationId})",
+                message.OrderId, message.IsPartialReservation, message.TotalReserved, message.TotalRequested, message.CorrelationId);
 
             try
             {
@@ -41,20 +41,39 @@ namespace ERPApi.Consumers
                     return;
                 }
 
-                // Update order state
-                order.OrderState = "StockReserved";
+                // Update order state based on partial flag
+                order.OrderState = message.IsPartialReservation ? "PartialDelivered" : "StockReserved";
                 
-                // Mark all items as Available since full stock is reserved
-                foreach (var item in order.OrderItems)
+                if (message.IsPartialReservation)
                 {
-                    item.Status = "Available";
+                    // Create lookup set for reserved SKUs
+                    var reservedSkus = new HashSet<string>(message.Items.Select(i => i.Sku ?? string.Empty));
+                    
+                    // Mark items as Available or Unavailable based on reservation
+                    foreach (var item in order.OrderItems)
+                    {
+                        item.Status = reservedSkus.Contains(item.Sku ?? string.Empty) ? "Available" : "Unavailable";
+                    }
+                    
+                    var availableSkusLog = string.Join(", ", message.Items.Select(i => $"{i.Sku} (Qty: {i.Quantity})"));
+                    _logger.LogWarning("⚠️ [PARTIAL FULFILLMENT] Order {OrderId} has partial stock availability. " +
+                        "Available items: [{AvailableItems}] (CorrelationId: {CorrelationId})",
+                        message.OrderId, availableSkusLog, message.CorrelationId);
+                }
+                else
+                {
+                    // Full stock reserved - mark all items as Available
+                    foreach (var item in order.OrderItems)
+                    {
+                        item.Status = "Available";
+                    }
                 }
                 
                 _context.Orders.Update(order);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Updated Order {OrderId} state to StockReserved, all {ItemCount} items marked as Available (CorrelationId: {CorrelationId})",
-                    message.OrderId, order.OrderItems.Count, message.CorrelationId);
+                _logger.LogInformation("Updated Order {OrderId} state to {OrderState}, {ReservedCount}/{TotalCount} items marked as Available (CorrelationId: {CorrelationId})",
+                    message.OrderId, order.OrderState, message.TotalReserved, message.TotalRequested, message.CorrelationId);
             }
             catch (Exception ex)
             {

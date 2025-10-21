@@ -60,7 +60,6 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>();
     x.AddConsumer<ERPApi.Consumers.StockReservedConsumer>();
     x.AddConsumer<ERPApi.Consumers.StockUnavailableConsumer>();
-    x.AddConsumer<ERPApi.Consumers.PartialStockReservedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPickedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
     
@@ -82,14 +81,12 @@ builder.Services.AddMassTransit(x =>
         cfg.Publish<Contracts.Events.OrderCreated>(x => x.ExchangeType = "topic");
         cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
         cfg.Publish<Contracts.Events.StockUnavailable>(x => x.ExchangeType = "topic");
-        cfg.Publish<Contracts.Events.PartialStockReserved>(x => x.ExchangeType = "topic");
         cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
         cfg.Publish<Contracts.Events.OrderPacked>(x => x.ExchangeType = "topic");
         
         // Configure exchanges for events we CONSUME (tell consumers to use topic, not fanout)
         cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
         cfg.Message<Contracts.Events.StockUnavailable>(x => x.SetEntityName("Contracts.Events:StockUnavailable"));
-        cfg.Message<Contracts.Events.PartialStockReserved>(x => x.SetEntityName("Contracts.Events:PartialStockReserved"));
         cfg.Message<Contracts.Events.OrderPicked>(x => x.SetEntityName("Contracts.Events:OrderPicked"));
         cfg.Message<Contracts.Events.OrderPacked>(x => x.SetEntityName("Contracts.Events:OrderPacked"));
 
@@ -110,12 +107,6 @@ builder.Services.AddMassTransit(x =>
         cfg.ReceiveEndpoint("erp-stock-unavailable", e =>
         {
             e.ConfigureConsumer<ERPApi.Consumers.StockUnavailableConsumer>(context);
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        });
-        
-        cfg.ReceiveEndpoint("erp-partial-stock-reserved", e =>
-        {
-            e.ConfigureConsumer<ERPApi.Consumers.PartialStockReservedConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         });
         
@@ -151,10 +142,6 @@ builder.Services.AddMassTransit(x =>
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>(
                 context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>>>()));
-            
-            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.PartialStockReserved>(
-                context.GetRequiredService<OrderDbContext>(),
-                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.PartialStockReserved>>>()));
             
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>(
                 context.GetRequiredService<OrderDbContext>(),

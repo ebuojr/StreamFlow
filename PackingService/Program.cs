@@ -32,6 +32,9 @@ try
     {
         // Register consumers
         x.AddConsumer<OrderPickedConsumer>();
+        
+        // Register fault consumer for Dead Letter Channel
+        x.AddConsumer<PackingService.Consumers.FaultConsumer<Contracts.Events.OrderPicked>>();
 
         x.UsingRabbitMq((context, cfg) =>
         {
@@ -58,6 +61,12 @@ try
 
                 // Retry policy: 3 retries with 5 second interval
                 e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            });
+
+            // Dead Letter Channel for failed packing operations
+            cfg.ReceiveEndpoint("packing-dead-letter", e =>
+            {
+                e.ConfigureConsumer<PackingService.Consumers.FaultConsumer<Contracts.Events.OrderPicked>>(context);
             });
         });
     });

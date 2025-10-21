@@ -5,6 +5,7 @@ namespace Contracts.Events
     /// <summary>
     /// Published by InventoryApi when stock is successfully reserved for an order.
     /// Enriched with all data needed for downstream processing (Content Enricher pattern).
+    /// Handles both full and partial stock reservations via IsPartialReservation flag.
     /// </summary>
     public record StockReserved
     {
@@ -12,6 +13,11 @@ namespace Contracts.Events
         public string OrderType { get; init; } = string.Empty;
         public string CorrelationId { get; init; } = string.Empty;
         public DateTime ReservedAt { get; init; } = DateTime.UtcNow;
+        
+        // Partial reservation support
+        public bool IsPartialReservation { get; init; }
+        public int TotalRequested { get; init; }
+        public int TotalReserved { get; init; }
         
         // Enriched data for downstream consumers (no HTTP calls needed)
         public List<OrderItemDto> Items { get; init; } = new();

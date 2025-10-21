@@ -32,7 +32,9 @@ try
     {
         // Register consumers
         x.AddConsumer<StockReservedConsumer>();
-        x.AddConsumer<PartialStockReservedConsumer>();
+        
+        // Register fault consumers for Dead Letter Channel
+        x.AddConsumer<PickingService.Consumers.FaultConsumer<Contracts.Events.StockReserved>>();
 
         x.UsingRabbitMq((context, cfg) =>
         {
@@ -48,11 +50,8 @@ try
             // ✅ CONFIGURE CONSUME TOPOLOGY (for events we consume)
             cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
             cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
-            
-            cfg.Message<Contracts.Events.PartialStockReserved>(x => x.SetEntityName("Contracts.Events:PartialStockReserved"));
-            cfg.Publish<Contracts.Events.PartialStockReserved>(x => x.ExchangeType = "topic");
 
-            // Configure priority queue for picking (full stock reserved)
+            // Configure priority queue for picking (handles both full and partial stock)
             cfg.ReceiveEndpoint("picking-stock-reserved", e =>
             {
                 e.ConfigureConsumer<StockReservedConsumer>(context);
@@ -67,19 +66,10 @@ try
                 e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             });
 
-            // Configure priority queue for partial stock (same priority handling)
-            cfg.ReceiveEndpoint("picking-partial-stock-reserved", e =>
+            // Dead Letter Channel for failed picking operations
+            cfg.ReceiveEndpoint("picking-dead-letter", e =>
             {
-                e.ConfigureConsumer<PartialStockReservedConsumer>(context);
-
-                // Priority queue configuration (same as full stock)
-                e.SetQueueArgument("x-max-priority", 10);
-                
-                // Low prefetch count for priority queue fairness
-                e.PrefetchCount = 4;
-
-                // Retry policy: 3 retries with 5 second interval
-                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+                e.ConfigureConsumer<PickingService.Consumers.FaultConsumer<Contracts.Events.StockReserved>>(context);
             });
         });
     });

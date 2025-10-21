@@ -22,8 +22,10 @@ namespace PickingService.Consumers
         {
             var message = context.Message;
             
-            _logger.LogInformation("🔍 [PICKING STARTED] Order {OrderId} | Type: {OrderType} | Items: {ItemCount} | CorrelationId: {CorrelationId}",
-                message.OrderId, message.OrderType, message.Items.Count, message.CorrelationId);
+            var logPrefix = message.IsPartialReservation ? "⚠️ [PARTIAL PICKING STARTED]" : "🔍 [PICKING STARTED]";
+            _logger.LogInformation("{Prefix} Order {OrderId} | Type: {OrderType} | Items: {ItemCount} | Partial: {IsPartial} ({Reserved}/{Requested}) | CorrelationId: {CorrelationId}",
+                logPrefix, message.OrderId, message.OrderType, message.Items.Count, message.IsPartialReservation, 
+                message.TotalReserved, message.TotalRequested, message.CorrelationId);
 
             try
             {
@@ -53,8 +55,9 @@ namespace PickingService.Consumers
                     ctx.Headers.Set("priority", priority);
                 });
 
-                _logger.LogInformation("✅ [PICKING COMPLETED] Order {OrderId} | Actual time: {ActualTime}ms | Priority: {Priority} | Published OrderPicked event (CorrelationId: {CorrelationId})",
-                    message.OrderId, pickingTime, priority, message.CorrelationId);
+                var completionPrefix = message.IsPartialReservation ? "✅ [PARTIAL PICKING COMPLETED]" : "✅ [PICKING COMPLETED]";
+                _logger.LogInformation("{Prefix} Order {OrderId} | Picked {Picked}/{Requested} items | Actual time: {ActualTime}ms | Priority: {Priority} | Published OrderPicked event (CorrelationId: {CorrelationId})",
+                    completionPrefix, message.OrderId, message.TotalReserved, message.TotalRequested, pickingTime, priority, message.CorrelationId);
             }
             catch (Exception ex)
             {

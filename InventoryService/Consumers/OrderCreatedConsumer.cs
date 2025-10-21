@@ -50,27 +50,8 @@ namespace InventoryService.Consumers
                 }
             }
 
-            // Scenario 1: ALL items available (most common - ~80% of orders)
-            if (unavailableItems.Count == 0)
-            {
-                _logger.LogInformation(
-                    "💚 [INVENTORY] ✅ All items available for OrderNo={OrderNo}. Publishing StockReserved. [CorrelationId={CorrelationId}]",
-                    orderCreated.OrderNo,
-                    orderCreated.CorrelationId);
-
-                await context.Publish(new StockReserved
-                {
-                    OrderId = orderCreated.OrderId,
-                    OrderType = orderCreated.OrderType,
-                    Items = orderCreated.Items,
-                    Customer = orderCreated.Customer,
-                    ShippingAddress = orderCreated.ShippingAddress,
-                    CorrelationId = orderCreated.CorrelationId,
-                    ReservedAt = DateTime.UtcNow
-                });
-            }
-            // Scenario 2: NO items available (rare)
-            else if (availableItems.Count == 0)
+            // Scenario 1: NO items available (rare)
+            if (availableItems.Count == 0)
             {
                 var unavailableSkus = string.Join(", ", unavailableItems.Select(i => i.Sku));
                 
@@ -89,30 +70,45 @@ namespace InventoryService.Consumers
                     CheckedAt = DateTime.UtcNow
                 });
             }
-            // Scenario 3: PARTIAL availability (some items available, some not)
+            // Scenario 2: FULL or PARTIAL availability (merged into single event)
             else
             {
-                var availableSkus = string.Join(", ", availableItems.Select(i => i.Sku));
-                var unavailableSkus = string.Join(", ", unavailableItems.Select(i => i.Sku));
+                bool isPartial = unavailableItems.Count > 0;
+                int totalRequested = orderCreated.Items.Count;
+                int totalReserved = availableItems.Count;
                 
-                _logger.LogWarning(
-                    "⚠️ [INVENTORY] PARTIAL availability for OrderNo={OrderNo}. Available: [{AvailableSkus}], Unavailable: [{UnavailableSkus}]. Publishing PartialStockReserved. [CorrelationId={CorrelationId}]",
-                    orderCreated.OrderNo,
-                    availableSkus,
-                    unavailableSkus,
-                    orderCreated.CorrelationId);
+                if (isPartial)
+                {
+                    var availableSkus = string.Join(", ", availableItems.Select(i => i.Sku));
+                    var unavailableSkus = string.Join(", ", unavailableItems.Select(i => i.Sku));
+                    
+                    _logger.LogWarning(
+                        "⚠️ [INVENTORY] PARTIAL availability for OrderNo={OrderNo}. Available: [{AvailableSkus}], Unavailable: [{UnavailableSkus}]. Publishing StockReserved with IsPartialReservation=true. [CorrelationId={CorrelationId}]",
+                        orderCreated.OrderNo,
+                        availableSkus,
+                        unavailableSkus,
+                        orderCreated.CorrelationId);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "💚 [INVENTORY] ✅ All items available for OrderNo={OrderNo}. Publishing StockReserved with IsPartialReservation=false. [CorrelationId={CorrelationId}]",
+                        orderCreated.OrderNo,
+                        orderCreated.CorrelationId);
+                }
 
-                await context.Publish(new PartialStockReserved
+                await context.Publish(new StockReserved
                 {
                     OrderId = orderCreated.OrderId,
-                    OrderNo = orderCreated.OrderNo,
                     OrderType = orderCreated.OrderType,
-                    AvailableItems = availableItems,
-                    UnavailableItems = unavailableItems,
+                    Items = availableItems,
                     Customer = orderCreated.Customer,
                     ShippingAddress = orderCreated.ShippingAddress,
                     CorrelationId = orderCreated.CorrelationId,
-                    ReservedAt = DateTime.UtcNow
+                    ReservedAt = DateTime.UtcNow,
+                    IsPartialReservation = isPartial,
+                    TotalRequested = totalRequested,
+                    TotalReserved = totalReserved
                 });
             }
         }
