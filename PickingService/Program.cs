@@ -45,6 +45,8 @@ try
             });
 
             // ✅ EXPLICITLY CONFIGURE TOPIC EXCHANGES (FIX FOR FANOUT ISSUE)
+            // Events this service PUBLISHES
+            cfg.Message<Contracts.Events.OrderPicked>(x => x.SetEntityName("Contracts.Events:OrderPicked"));
             cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
             
             // ✅ CONFIGURE CONSUME TOPOLOGY (for events we consume)

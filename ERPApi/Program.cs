@@ -4,6 +4,7 @@ using ERPApi.DBContext;
 using ERPApi.Repository.Order;
 using ERPApi.Services.Order;
 using ERPApi.Workers;
+using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -62,6 +63,7 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<ERPApi.Consumers.StockUnavailableConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPickedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
+    x.AddConsumer<ERPApi.Consumers.OrderInvalidConsumer>();
     
     // Note: FaultConsumer<T> instances are manually created in the erp-dead-letter endpoint
     // because MassTransit doesn't support registering open generic types
@@ -77,18 +79,27 @@ builder.Services.AddMassTransit(x =>
         // ✅ EXPLICITLY CONFIGURE TOPIC EXCHANGES (FIX FOR FANOUT ISSUE)
         // MassTransit 8.x requires explicit exchange type configuration
         
-        // Configure exchanges for events we PUBLISH
+        // Configure exchange for OrderCreated event (only event we PUBLISH from ERPApi via OutboxWorker)
+        cfg.Message<Contracts.Events.OrderCreated>(x => x.SetEntityName("Contracts.Events:OrderCreated"));
         cfg.Publish<Contracts.Events.OrderCreated>(x => x.ExchangeType = "topic");
-        cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
-        cfg.Publish<Contracts.Events.StockUnavailable>(x => x.ExchangeType = "topic");
-        cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
-        cfg.Publish<Contracts.Events.OrderPacked>(x => x.ExchangeType = "topic");
         
-        // Configure exchanges for events we CONSUME (tell consumers to use topic, not fanout)
+        // Configure exchange for OrderInvalid event (published when validation fails)
+        cfg.Message<Contracts.Events.OrderInvalid>(x => x.SetEntityName("Contracts.Events:OrderInvalid"));
+        cfg.Publish<Contracts.Events.OrderInvalid>(x => x.ExchangeType = "topic");
+        
+        // Configure exchanges for events we CONSUME (tell consumers to use topic exchange, not fanout)
+        // ⚠️ CRITICAL: We must also configure Publish<> for consumed events to set exchange type to topic!
         cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
+        cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
+        
         cfg.Message<Contracts.Events.StockUnavailable>(x => x.SetEntityName("Contracts.Events:StockUnavailable"));
+        cfg.Publish<Contracts.Events.StockUnavailable>(x => x.ExchangeType = "topic");
+        
         cfg.Message<Contracts.Events.OrderPicked>(x => x.SetEntityName("Contracts.Events:OrderPicked"));
+        cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
+        
         cfg.Message<Contracts.Events.OrderPacked>(x => x.SetEntityName("Contracts.Events:OrderPacked"));
+        cfg.Publish<Contracts.Events.OrderPacked>(x => x.ExchangeType = "topic");
 
         // Configure the receive endpoint for CreateOrderRequest (Request/Reply pattern)
         cfg.ReceiveEndpoint("create-order-request", e =>
@@ -120,6 +131,13 @@ builder.Services.AddMassTransit(x =>
         {
             e.ConfigureConsumer<ERPApi.Consumers.OrderPackedConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+        });
+        
+        // Invalid Order Channel - catch validation failures
+        cfg.ReceiveEndpoint("erp-invalid-order", e =>
+        {
+            e.ConfigureConsumer<ERPApi.Consumers.OrderInvalidConsumer>(context);
+            // No retry needed - these are permanently invalid orders
         });
         
         // Dead Letter Channel - catch all faulted messages
@@ -164,6 +182,9 @@ builder.Services.AddDbContext<OrderDbContext>(options =>
 // services
 builder.Services.AddScoped<IOrderRepository, OrderRepositroy>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+
+// FluentValidation
+builder.Services.AddScoped<IValidator<Entities.Model.Order>, ERPApi.Services.Validation.OrderValidator>();
 
 // Register OutboxPublisher background service
 builder.Services.AddHostedService<OutboxPublisherWorker>();

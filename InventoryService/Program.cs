@@ -42,7 +42,11 @@ builder.Services.AddMassTransit(x =>
         });
 
         // ✅ EXPLICITLY CONFIGURE TOPIC EXCHANGES (FIX FOR FANOUT ISSUE)
+        // Events this service PUBLISHES
+        cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
         cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
+        
+        cfg.Message<Contracts.Events.StockUnavailable>(x => x.SetEntityName("Contracts.Events:StockUnavailable"));
         cfg.Publish<Contracts.Events.StockUnavailable>(x => x.ExchangeType = "topic");
         
         // ✅ CONFIGURE CONSUME TOPOLOGY (for events we consume)
