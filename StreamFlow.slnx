@@ -2,9 +2,8 @@
   <Project Path="Contracts/Contracts.csproj" Id="4d77dadc-ae33-4748-a427-55d667ce03bb" />
   <Project Path="Entities/Entities.csproj" Id="3428a432-5242-4c7f-9725-7aa2c1d36d45" />
   <Project Path="ERPApi/ERPApi.csproj" Id="cf5c10e4-85fd-4e4c-9907-10221aaa4e51" />
-  <Project Path="InventoryApi/InventoryApi.csproj" Id="85b676d2-e3b0-48fb-b590-1dbf6f2047c3" />
+  <Project Path="InventoryService/InventoryService.csproj" />
   <Project Path="OrderApi/OrderApi.csproj" />
-  <Project Path="OutboxApi/OutboxApi.csproj" Id="6c17d5a8-5fb8-4455-bb5b-8d26a4795fbd" />
   <Project Path="PackingService/PackingService.csproj" />
   <Project Path="PickingService/PickingService.csproj" Id="5d520d72-b190-43b6-b8d5-a1166ff39e83" />
 </Solution>

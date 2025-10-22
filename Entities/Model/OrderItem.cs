@@ -9,5 +9,11 @@
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        
+        /// <summary>
+        /// Tracks the fulfillment status of this order item.
+        /// Possible values: Pending, Available, Unavailable, Picked, Packed
+        /// </summary>
+        public string Status { get; set; } = "Pending";
     }
 }

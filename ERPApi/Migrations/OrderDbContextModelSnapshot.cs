@@ -15,7 +15,7 @@ namespace ERPApi.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.0-rc.1.25451.107");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.10");
 
             modelBuilder.Entity("Entities.Model.Order", b =>
                 {
@@ -30,8 +30,8 @@ namespace ERPApi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool?>("IsPreOrder")
-                        .HasColumnType("INTEGER");
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("OrderNo")
                         .HasColumnType("INTEGER");
@@ -48,7 +48,11 @@ namespace ERPApi.Migrations
                     b.HasIndex("OrderNo")
                         .IsUnique();
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", t =>
+                        {
+                            t.Property("CustomerId")
+                                .HasColumnName("Order_CustomerId");
+                        });
                 });
 
             modelBuilder.Entity("Entities.Model.OrderItem", b =>
@@ -70,6 +74,13 @@ namespace ERPApi.Migrations
                     b.Property<string>("Sku")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Pending");
 
                     b.Property<decimal>("TotalPrice")
                         .HasColumnType("TEXT");
@@ -99,6 +110,39 @@ namespace ERPApi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("OrderSentToPickings");
+                });
+
+            modelBuilder.Entity("Entities.Model.Outbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("ProcessedAt");
+
+                    b.ToTable("OutboxMessages");
                 });
 
             modelBuilder.Entity("Entities.Model.Order", b =>
