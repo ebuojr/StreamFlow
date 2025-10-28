@@ -63,7 +63,7 @@ namespace PackingService.Consumers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ [PACKING FAILED] Order {OrderId} (CorrelationId: {CorrelationId})",
+                _logger.LogError(ex, "[PACKING FAILED] Order {OrderId} (CorrelationId: {CorrelationId})",
                     message.OrderId, message.CorrelationId);
                 throw; // Let MassTransit handle retry/DLC
             }

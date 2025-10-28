@@ -1,0 +1,752 @@
+@page "/"
+@inject HttpClient Http
+@inject IHttpClientFactory HttpClientFactory
+@inject BlazorUI.Services.SeqLogService SeqLogService
+@using System.Text.Json
+@using System.Text
+@using Entities.Model
+@using BlazorUI.Services
+@implements IDisposable
+
+<PageTitle>StreamFlow WMS</PageTitle>
+
+<div class="min-h-screen bg-gray-50 p-4">
+    <div class="max-w-full mx-auto mb-4">
+        <h1 class="text-2xl font-bold text-gray-900">StreamFlow WMS - Order Management</h1>
+        <p class="text-xs text-gray-600 mt-1">Create orders, monitor status, and view live logs</p>
+    </div>
+
+    <!-- Two Column Layout: Order Generator | Order Overview -->
+    <div class="max-w-full mx-auto grid grid-cols-8 gap-4">
+        
+        <!-- LEFT: Order Generator (Compact - 2 cols) -->
+        <div class="col-span-2 space-y-4">
+            <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <h2 class="text-xs font-semibold text-gray-900 mb-2">Quick Actions</h2>
+                <div class="space-y-2">
+                    <button @onclick="GenerateRandomOrder" class="w-full px-2 py-1.5 text-xs bg-gray-900 text-white font-medium rounded hover:bg-gray-800">
+                        Generate Order
+                    </button>
+                    <button @onclick="Generate5CountryOrders" class="w-full px-2 py-1.5 text-xs bg-purple-900 text-white font-medium rounded hover:bg-purple-800">
+                        5 Nordic Orders
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <h2 class="text-xs font-semibold text-gray-900 mb-2">Order JSON</h2>
+                <textarea @bind="orderJson" @bind:event="oninput" rows="12" 
+                          class="w-full px-2 py-1.5 text-xs font-mono border border-gray-300 rounded focus:ring-1 focus:ring-gray-900"
+                          placeholder="Generate or paste JSON..."></textarea>
+
+                @if (!string.IsNullOrEmpty(validationError))
+                {
+                    <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p class="text-xs text-red-800">@validationError</p>
+                    </div>
+                }
+
+                <div class="mt-2 space-y-1">
+                    <button @onclick="SubmitOrder" disabled="@isSubmitting"
+                            class="w-full px-2 py-1.5 text-xs bg-gray-900 text-white font-medium rounded hover:bg-gray-800 disabled:bg-gray-400">
+                        @(isSubmitting ? "Submitting..." : "Submit Order")
+                    </button>
+                    <button @onclick="ClearEditor" class="w-full px-2 py-1.5 text-xs bg-white border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50">
+                        Clear
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrEmpty(responseMessage))
+                {
+                    <div class="mt-2">
+                        @if (isSuccess)
+                        {
+                            <div class="p-2 bg-green-50 border border-green-200 rounded">
+                                <p class="text-xs text-green-800">Order #@orderNo</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="p-2 bg-red-50 border border-red-200 rounded">
+                                <p class="text-xs text-red-800">@responseMessage</p>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- MIDDLE: Order Overview (6 cols) -->
+        <div class="col-span-6 space-y-4">
+            <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <div class="flex gap-2">
+                    <input type="text" @bind="searchOrderNo" @bind:event="oninput" placeholder="Search by Order No..." 
+                           class="flex-1 px-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-gray-900" />
+                    <button @onclick="LoadOrders" class="px-3 py-1.5 text-xs bg-gray-900 text-white font-medium rounded hover:bg-gray-800">
+                        Refresh
+                    </button>
+                    <button @onclick="ClearFilter" class="px-3 py-1.5 text-xs bg-white border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50">
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-2">
+                <div class="bg-white border border-gray-200 rounded-lg p-2">
+                    <p class="text-xs text-gray-600">Total</p>
+                    <p class="text-lg font-bold text-gray-900">@orders.Count</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg p-2">
+                    <p class="text-xs text-gray-600">Created</p>
+                    <p class="text-lg font-bold text-blue-600">@orders.Count(o => o.OrderState == "Created")</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg p-2">
+                    <p class="text-xs text-gray-600">Processing</p>
+                    <p class="text-lg font-bold text-yellow-600">@orders.Count(o => o.OrderState == "StockReserved" || o.OrderState == "Picked")</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg p-2">
+                    <p class="text-xs text-gray-600">Packed</p>
+                    <p class="text-lg font-bold text-green-600">@orders.Count(o => o.OrderState == "Packed")</p>
+                </div>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div class="bg-gray-50 border-b border-gray-200 px-3 py-2">
+                    <h2 class="text-xs font-semibold text-gray-900">Order Overview (@FilteredOrders.Count() orders)</h2>
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="flex items-center justify-center py-8">
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-6 w-6 border-4 border-gray-900 border-t-transparent"></div>
+                            <p class="mt-2 text-xs text-gray-600">Loading orders...</p>
+                        </div>
+                    </div>
+                }
+                else if (orders.Count == 0)
+                {
+                    <div class="text-center py-8">
+                        <p class="text-xs text-gray-500">No orders found. Create one using the form on the left!</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-900">Order No</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-900">Country</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-900">Customer</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-900">Items</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-900">Total</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-900">Status</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-900">Created</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                @foreach (var order in FilteredOrders.OrderByDescending(o => o.OrderNo))
+                                {
+                                    <tr class="hover:bg-gray-50 cursor-pointer" @onclick="() => OpenOrderDetails(order)">
+                                        <td class="px-3 py-2 whitespace-nowrap">
+                                            <span class="font-mono text-xs font-medium">@order.OrderNo</span>
+                                        </td>
+                                        <td class="px-3 py-2 whitespace-nowrap">
+                                            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">@order.CountryCode</span>
+                                        </td>
+                                        <td class="px-3 py-2 whitespace-nowrap text-xs">@order.Customer?.FirstName @order.Customer?.LastName</td>
+                                        <td class="px-3 py-2 whitespace-nowrap text-xs">@order.OrderItems.Count items</td>
+                                        <td class="px-3 py-2 whitespace-nowrap text-xs font-medium">@order.TotalAmount.ToString("N2") @order.Payment?.Currency</td>
+                                        <td class="px-3 py-2 whitespace-nowrap">
+                                            <span class="@GetStatusBadgeClass(order.OrderState)">@order.OrderState</span>
+                                        </td>
+                                        <td class="px-3 py-2 whitespace-nowrap text-xs">@order.CreatedAt.ToString("HH:mm:ss")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Details Modal -->
+@if (showOrderModal && selectedOrder != null)
+{
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" @onclick="CloseOrderModal">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden" @onclick:stopPropagation="true">
+            <!-- Modal Header -->
+            <div class="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold">Order #@selectedOrder.OrderNo Details</h2>
+                <button @onclick="CloseOrderModal" class="text-white hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto" style="max-height: calc(90vh - 80px);">
+                <!-- Order Information Section -->
+                <div class="p-6 border-b border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-900 mb-4">Order Information</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-600">Order Number</p>
+                            <p class="font-mono font-medium">#@selectedOrder.OrderNo</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Status</p>
+                            <span class="@GetStatusBadgeClass(selectedOrder.OrderState)">@selectedOrder.OrderState</span>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Customer</p>
+                            <p class="font-medium">@selectedOrder.Customer?.FirstName @selectedOrder.Customer?.LastName</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Country</p>
+                            <p class="font-medium">@selectedOrder.CountryCode</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Total Amount</p>
+                            <p class="font-medium">@selectedOrder.TotalAmount.ToString("N2") @selectedOrder.Payment?.Currency</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Created At</p>
+                            <p class="font-medium">@selectedOrder.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-gray-600">Shipping Address</p>
+                            <p class="font-medium">@selectedOrder.ShippingAddress?.Street, @selectedOrder.ShippingAddress?.City, @selectedOrder.ShippingAddress?.PostalCode</p>
+                        </div>
+                    </div>
+
+                    <!-- Order Items -->
+                    <div class="mt-4">
+                        <p class="text-gray-600 mb-2">Order Items (@selectedOrder.OrderItems.Count)</p>
+                        <div class="space-y-2">
+                            @foreach (var item in selectedOrder.OrderItems)
+                            {
+                                <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                    <div>
+                                        <p class="text-sm font-medium">@item.Name</p>
+                                        <p class="text-xs text-gray-600">SKU: @item.Sku</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm font-medium">@item.Quantity x @item.UnitPrice.ToString("N2")</p>
+                                        <p class="text-xs text-gray-600">@((item.Quantity * item.UnitPrice).ToString("N2")) @selectedOrder.Payment?.Currency</p>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Processing Logs Section -->
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-sm font-semibold text-gray-900">Order Processing Logs</h3>
+                        <span class="text-xs text-gray-500 font-mono">OrderNo: @selectedOrder.OrderNo</span>
+                    </div>
+                    
+                    @if (isLoadingOrderLogs)
+                    {
+                        <div class="flex items-center justify-center py-8">
+                            <div class="text-center">
+                                <div class="inline-block animate-spin rounded-full h-6 w-6 border-4 border-gray-900 border-t-transparent"></div>
+                                <p class="mt-2 text-xs text-gray-600">Loading logs...</p>
+                            </div>
+                        </div>
+                    }
+                    else if (orderLogs.Count == 0)
+                    {
+                        <div class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="mt-2 text-sm font-medium text-gray-900">No logs found for this order</p>
+                            <p class="text-xs text-gray-500 mt-1">OrderNo: @selectedOrder.OrderNo</p>
+                            <p class="text-xs text-gray-400 mt-2">Logs may not have been generated yet or may have expired in Seq</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="space-y-2">
+                            @foreach (var log in orderLogs)
+                            {
+                                <div class="border-l-4 pl-3 py-2 @(log.Level == "Error" ? "border-red-500 bg-red-50" : log.Level == "Warning" ? "border-yellow-500 bg-yellow-50" : "border-blue-500 bg-blue-50") rounded">
+                                    <div class="flex items-start gap-2">
+                                        <span class="@GetLogLevelBadgeClass(log.Level) flex-shrink-0">
+                                            @log.Level
+                                        </span>
+                                        <div class="flex-1 min-w-0">
+                                            @{
+                                                var message = !string.IsNullOrEmpty(log.RenderedMessage) 
+                                                    ? log.RenderedMessage 
+                                                    : log.MessageTemplate;
+                                            }
+                                            <p class="text-sm text-gray-900 break-words font-medium">@message</p>
+                                            
+                                            <div class="flex flex-wrap gap-3 mt-1.5 text-xs">
+                                                <span class="font-mono text-gray-600">
+                                                    @log.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff")
+                                                </span>
+                                                @if (!string.IsNullOrEmpty(log.GetProperty("Service")))
+                                                {
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">
+                                                        @log.GetProperty("Service")
+                                                    </span>
+                                                }
+                                                @if (!string.IsNullOrEmpty(log.GetProperty("SourceContext")))
+                                                {
+                                                    <span class="text-gray-600 truncate max-w-xs" title="@log.GetProperty("SourceContext")">
+                                                        @log.GetProperty("SourceContext")
+                                                    </span>
+                                                }
+                                            </div>
+                                            
+                                            @* Show additional relevant properties *@
+                                            @{
+                                                var orderNo = log.GetProperty("OrderNo");
+                                                var status = log.GetProperty("Status");
+                                                var orderState = log.GetProperty("OrderState");
+                                                var reason = log.GetProperty("Reason");
+                                            }
+                                            @if (!string.IsNullOrEmpty(orderNo) || !string.IsNullOrEmpty(status) || !string.IsNullOrEmpty(orderState) || !string.IsNullOrEmpty(reason))
+                                            {
+                                                <div class="mt-1 text-xs text-gray-600 space-y-0.5">
+                                                    @if (!string.IsNullOrEmpty(orderNo))
+                                                    {
+                                                        <div>OrderNo: <span class="font-mono">@orderNo</span></div>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(orderState))
+                                                    {
+                                                        <div>State: <span class="font-medium">@orderState</span></div>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(status))
+                                                    {
+                                                        <div>Status: <span class="font-medium">@status</span></div>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(reason))
+                                                    {
+                                                        <div>Reason: <span class="italic">@reason</span></div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string orderJson = "";
+    private string responseMessage = "";
+    private string validationError = "";
+    private string orderNo = "";
+    private bool isSubmitting = false;
+    private bool isSuccess = false;
+    private List<Order> orders = new();
+    private string searchOrderNo = "";
+    private bool isLoading = true;
+    private Timer? refreshTimer;
+
+    // Order Details Modal
+    private Order? selectedOrder = null;
+    private bool showOrderModal = false;
+    private List<SeqEvent> orderLogs = new();
+    private bool isLoadingOrderLogs = false;
+
+    private static readonly Random random = new Random();
+
+    // Plus-sized fashion products for women
+    private static readonly (string sku, string name, decimal price)[] fashionProducts = {
+        ("FASHION-001", "Plus Size Maxi Dress - Floral", 599.00m),
+        ("FASHION-002", "Curve Denim Jeans - Dark Blue", 499.00m),
+        ("FASHION-003", "Plus Size Blazer - Black", 899.00m),
+        ("FASHION-004", "Curve Tunic Top - White", 349.00m),
+        ("FASHION-005", "Plus Size Cardigan - Grey", 449.00m),
+        ("FASHION-006", "Curve Leggings - Black", 299.00m),
+        ("FASHION-007", "Plus Size Evening Dress - Navy", 1299.00m),
+        ("FASHION-008", "Curve Blouse - Burgundy", 399.00m),
+        ("FASHION-009", "Plus Size Skirt - A-Line", 549.00m),
+        ("FASHION-010", "Curve T-Shirt Pack (3) - Mixed", 399.00m),
+        ("FASHION-011", "Plus Size Coat - Winter", 1499.00m),
+        ("FASHION-012", "Curve Jumpsuit - Black", 799.00m)
+    };
+
+    // Country-specific data
+    private static readonly Dictionary<string, (string[] firstNames, string[] lastNames, string[] cities, string[] streets, string countryCode, string currency, string state, string phonePrefix)> countryData = new()
+    {
+        ["DK"] = (
+            new[] { "Anders", "Mette", "Lars", "Anne", "Peter", "Sofie", "Michael", "Emma", "Henrik", "Julie" },
+            new[] { "Hansen", "Nielsen", "Jensen", "Pedersen", "Andersen", "Christensen", "Larsen", "Sørensen", "Rasmussen", "Jørgensen" },
+            new[] { "København", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Randers", "Kolding", "Horsens", "Vejle", "Roskilde" },
+            new[] { "Vestergade", "Nørregade", "Østergade", "Søndergade", "Hovedgaden", "Strandvejen", "Brogade", "Torvet" },
+            "DK", "DKK", "Midtjylland", "+45"
+        ),
+        ["DE"] = (
+            new[] { "Hans", "Anna", "Klaus", "Helga", "Wolfgang", "Greta", "Friedrich", "Ingrid", "Otto", "Brunhilde" },
+            new[] { "Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Schulz", "Hoffmann" },
+            new[] { "Berlin", "Hamburg", "München", "Köln", "Frankfurt", "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig" },
+            new[] { "Hauptstraße", "Bahnhofstraße", "Kirchstraße", "Marktplatz", "Berliner Straße", "Schulstraße", "Gartenstraße", "Ringstraße" },
+            "DE", "EUR", "Bayern", "+49"
+        ),
+        ["NO"] = (
+            new[] { "Ole", "Ingrid", "Lars", "Astrid", "Bjørn", "Sigrid", "Erik", "Helga", "Magnus", "Solveig" },
+            new[] { "Hansen", "Johansen", "Olsen", "Larsen", "Andersen", "Pedersen", "Nilsen", "Kristiansen", "Jensen", "Karlsen" },
+            new[] { "Oslo", "Bergen", "Trondheim", "Stavanger", "Drammen", "Fredrikstad", "Kristiansand", "Sandnes", "Tromsø", "Sarpsborg" },
+            new[] { "Storgata", "Kirkegata", "Havnegata", "Fjellveien", "Skogveien", "Parkveien", "Strandveien", "Torget" },
+            "NO", "NOK", "Oslo", "+47"
+        ),
+        ["SE"] = (
+            new[] { "Erik", "Anna", "Lars", "Ingrid", "Karl", "Astrid", "Gustav", "Maja", "Sven", "Karin" },
+            new[] { "Andersson", "Johansson", "Karlsson", "Nilsson", "Eriksson", "Larsson", "Olsson", "Persson", "Svensson", "Gustafsson" },
+            new[] { "Stockholm", "Göteborg", "Malmö", "Uppsala", "Västerås", "Örebro", "Linköping", "Helsingborg", "Jönköping", "Norrköping" },
+            new[] { "Storgatan", "Kyrkogatan", "Stationsgatan", "Parkgatan", "Skolgatan", "Torggatan", "Kungsgatan", "Drottninggatan" },
+            "SE", "SEK", "Stockholm", "+46"
+        ),
+        ["FI"] = (
+            new[] { "Mikko", "Aino", "Juhani", "Helmi", "Matti", "Kerttu", "Eero", "Liisa", "Antti", "Saara" },
+            new[] { "Virtanen", "Korhonen", "Mäkinen", "Nieminen", "Hämäläinen", "Laine", "Heikkinen", "Koskinen", "Järvinen", "Lehtonen" },
+            new[] { "Helsinki", "Espoo", "Tampere", "Vantaa", "Oulu", "Turku", "Jyväskylä", "Lahti", "Kuopio", "Pori" },
+            new[] { "Mannerheimintie", "Hämeentie", "Aleksanterinkatu", "Mikonkatu", "Kalevankatu", "Bulevardi", "Esplanadi", "Senaatintori" },
+            "FI", "EUR", "Uusimaa", "+358"
+        )
+    };
+
+    private IEnumerable<Order> FilteredOrders =>
+        string.IsNullOrWhiteSpace(searchOrderNo)
+            ? orders
+            : orders.Where(o => o.OrderNo.ToString().Contains(searchOrderNo, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrders();
+        
+        // Setup timer to refresh orders every 0.5 seconds
+        refreshTimer = new Timer(async _ => 
+        {
+            await InvokeAsync(async () => 
+            {
+                await LoadOrders();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.5));
+    }
+
+    private async Task LoadOrders()
+    {
+        isLoading = true;
+        try
+        {
+            var client = HttpClientFactory.CreateClient("ERPApi");
+            var response = await client.GetAsync("/api/order");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<List<Order>>(json, new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true 
+                });
+                
+                if (result != null)
+                {
+                    orders = result;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading orders: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ClearFilter()
+    {
+        searchOrderNo = "";
+    }
+
+    private async Task OpenOrderDetails(Order order)
+    {
+        selectedOrder = order;
+        showOrderModal = true;
+        isLoadingOrderLogs = true;
+        orderLogs = new List<SeqEvent>();
+
+        try
+        {
+            // Fetch logs by OrderNo since that's what's logged in Serilog
+            var result = await SeqLogService.GetLogsByOrderNoAsync(order.OrderNo, 100);
+            orderLogs = result.Events.OrderBy(l => l.Timestamp).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading order logs: {ex.Message}");
+            orderLogs = new List<SeqEvent>();
+        }
+        finally
+        {
+            isLoadingOrderLogs = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CloseOrderModal()
+    {
+        showOrderModal = false;
+        selectedOrder = null;
+        orderLogs = new List<SeqEvent>();
+    }
+
+    private void GenerateRandomOrder()
+    {
+        var order = CreateOrderForCountry("DK", fashionProducts);
+        orderJson = JsonSerializer.Serialize(order, new JsonSerializerOptions { WriteIndented = true });
+        validationError = "";
+        responseMessage = "";
+    }
+
+    private async Task Generate5CountryOrders()
+    {
+        isSubmitting = true;
+        responseMessage = "";
+        validationError = "";
+        
+        try
+        {
+            var countries = new[] { "DK", "DE", "NO", "SE", "FI" };
+            var submittedOrders = new List<string>();
+
+            foreach (var countryCode in countries)
+            {
+                var order = CreateOrderForCountry(countryCode, fashionProducts);
+                var json = JsonSerializer.Serialize(order, new JsonSerializerOptions { WriteIndented = true });
+                
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await Http.PostAsync("api/order", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    var jsonResult = JsonDocument.Parse(result);
+                    
+                    if (jsonResult.RootElement.TryGetProperty("orderNo", out var orderNoElement))
+                    {
+                        submittedOrders.Add($"{countryCode}: #{orderNoElement.GetInt32()}");
+                    }
+                }
+                
+                // Small delay to avoid overwhelming the system
+                await Task.Delay(200);
+            }
+
+            if (submittedOrders.Count == 5)
+            {
+                isSuccess = true;
+                responseMessage = $"5 orders submitted! {string.Join(", ", submittedOrders)}";
+                await LoadOrders();
+            }
+            else
+            {
+                responseMessage = $"Only {submittedOrders.Count}/5 orders submitted successfully";
+                isSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            responseMessage = $"Error: {ex.Message}";
+            isSuccess = false;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private Order CreateOrderForCountry(string countryCode, (string sku, string name, decimal price)[] productCatalog)
+    {
+        var data = countryData[countryCode];
+        var orderId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        
+        // Generate 2-4 random items
+        var itemCount = random.Next(2, 5);
+        var orderItems = new List<OrderItem>();
+        decimal totalAmount = 0;
+
+        for (int i = 0; i < itemCount; i++)
+        {
+            var product = productCatalog[random.Next(productCatalog.Length)];
+            var quantity = random.Next(1, 3);
+            var totalPrice = product.price * quantity;
+            totalAmount += totalPrice;
+
+            orderItems.Add(new OrderItem
+            {
+                Id = Guid.NewGuid(),
+                OrderId = orderId,
+                Sku = product.sku,
+                Name = product.name,
+                Quantity = quantity,
+                UnitPrice = product.price,
+                TotalPrice = totalPrice,
+                Status = "Pending"
+            });
+        }
+
+        var firstName = data.firstNames[random.Next(data.firstNames.Length)];
+        var lastName = data.lastNames[random.Next(data.lastNames.Length)];
+        var city = data.cities[random.Next(data.cities.Length)];
+        var street = data.streets[random.Next(data.streets.Length)] + " " + random.Next(1, 200);
+        var emailDomain = countryCode.ToLower();
+
+        return new Order
+        {
+            Id = orderId,
+            OrderNo = 0,
+            CreatedAt = DateTime.UtcNow,
+            OrderState = "Pending",
+            CountryCode = countryCode,
+            TotalAmount = totalAmount,
+            CustomerId = customerId,
+            OrderItems = orderItems,
+            Customer = new Customer
+            {
+                Id = customerId,
+                FirstName = firstName,
+                LastName = lastName,
+                Email = $"{firstName.ToLower()}.{lastName.ToLower()}@example.{emailDomain}",
+                Phone = $"{data.phonePrefix}-{random.Next(20, 99)}-{random.Next(10, 99)}-{random.Next(10, 99)}-{random.Next(10, 99)}"
+            },
+            Payment = new Payment
+            {
+                PaymentMethod = random.Next(3) switch { 0 => "Credit Card", 1 => "Debit Card", _ => "Bank Transfer" },
+                PaymentStatus = "Authorized",
+                PaidAt = DateTime.UtcNow,
+                Currency = data.currency,
+                Amount = totalAmount
+            },
+            ShippingAddress = new Address
+            {
+                Street = street,
+                City = city,
+                State = data.state,
+                PostalCode = random.Next(1000, 9999).ToString(),
+                Country = countryCode
+            }
+        };
+    }
+
+    private void ClearEditor()
+    {
+        orderJson = "";
+        validationError = "";
+        responseMessage = "";
+        orderNo = "";
+        isSuccess = false;
+    }
+
+    private async Task SubmitOrder()
+    {
+        validationError = "";
+        responseMessage = "";
+        isSubmitting = true;
+        isSuccess = false;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(orderJson))
+            {
+                validationError = "Order JSON cannot be empty";
+                return;
+            }
+
+            JsonDocument.Parse(orderJson);
+
+            var content = new StringContent(orderJson, Encoding.UTF8, "application/json");
+            var response = await Http.PostAsync("api/order", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadAsStringAsync();
+                var jsonResult = JsonDocument.Parse(result);
+                
+                if (jsonResult.RootElement.TryGetProperty("orderNo", out var orderNoElement))
+                {
+                    orderNo = orderNoElement.GetInt32().ToString();
+                    isSuccess = true;
+                    responseMessage = "Order submitted successfully!";
+                    
+                    // Refresh order list
+                    await LoadOrders();
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                responseMessage = $"HTTP {(int)response.StatusCode}: {errorContent}";
+                isSuccess = false;
+            }
+        }
+        catch (JsonException ex)
+        {
+            validationError = $"Invalid JSON: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            responseMessage = $"Error: {ex.Message}";
+            isSuccess = false;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Created" => "inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800",
+        "StockReserved" or "PartialDelivered" => "inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800",
+        "Picked" => "inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800",
+        "Packed" => "inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800",
+        "StockUnavailable" => "inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800",
+        _ => "inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800"
+    };
+
+    private string GetLogLevelBadgeClass(string level) => level switch
+    {
+        "Information" => "inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800",
+        "Warning" => "inline-flex px-2 py-0.5 text-xs font-medium rounded bg-yellow-100 text-yellow-800",
+        "Error" => "inline-flex px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-800",
+        "Fatal" => "inline-flex px-2 py-0.5 text-xs font-medium rounded bg-red-200 text-red-900",
+        "Debug" => "inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700",
+        _ => "inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800"
+    };
+
+    private string GetLogBackgroundClass(string level) => level switch
+    {
+        "Error" => "bg-red-50",
+        "Fatal" => "bg-red-100",
+        "Warning" => "bg-yellow-50",
+        _ => ""
+    };
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+}

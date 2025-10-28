@@ -17,7 +17,7 @@ namespace PickingService.Consumers
             var messageType = typeof(T).Name;
 
             _logger.LogError(
-                "🎯❌ [PICKING-DLC] Faulted message: Type={MessageType}, FaultId={FaultId}, Timestamp={Timestamp}",
+                "[PICKING-DLC] Faulted message: Type={MessageType}, FaultId={FaultId}, Timestamp={Timestamp}",
                 messageType,
                 fault.FaultId,
                 fault.Timestamp);
@@ -27,14 +27,14 @@ namespace PickingService.Consumers
                 foreach (var ex in fault.Exceptions)
                 {
                     _logger.LogError(
-                        "🎯❌ [PICKING-DLC] Exception: {ExceptionType} - {Message}",
+                        "[PICKING-DLC] Exception: {ExceptionType} - {Message}",
                         ex.ExceptionType,
                         ex.Message);
                 }
             }
 
             _logger.LogWarning(
-                "🎯⚠️ [PICKING-DLC] Fault stored for manual review: {MessageType} [FaultId={FaultId}]",
+                "[PICKING-DLC] Fault stored for manual review: {MessageType} [FaultId={FaultId}]",
                 messageType,
                 fault.FaultId);
 

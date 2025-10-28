@@ -3,8 +3,37 @@ using OrderApi.Services.Order;
 using OrderApi.Configuration;
 using Contracts;
 using Scalar.AspNetCore;
+using Serilog;
+using Serilog.Events;
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Service", "OrderApi")
+    .Enrich.WithProperty("Environment", "Development")
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} | {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        path: "logs/orderapi-.log",
+        rollingInterval: RollingInterval.Day,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} | {Message:lj}{NewLine}{Exception}")
+    .WriteTo.Seq("http://localhost:5341")
+    .CreateLogger();
+
+try
+{
+    Log.Information("Starting OrderApi");
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Use Serilog for logging
+builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -94,3 +123,12 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 });
 
 app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "OrderApi terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

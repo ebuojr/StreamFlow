@@ -15,7 +15,9 @@ namespace ERPApi.Consumers
         private readonly OrderDbContext _context;
         private readonly ILogger<OrderPackedConsumer> _logger;
 
-        public OrderPackedConsumer(OrderDbContext context, ILogger<OrderPackedConsumer> logger)
+        public OrderPackedConsumer(
+            OrderDbContext context, 
+            ILogger<OrderPackedConsumer> logger)
         {
             _context = context;
             _logger = logger;

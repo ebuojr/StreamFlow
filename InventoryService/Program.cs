@@ -6,15 +6,21 @@ using Serilog.Events;
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Service", "InventoryService")
-    .Enrich.WithCorrelationId()
-    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+    .Enrich.WithProperty("Environment", "Development")
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} | {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "logs/inventoryservice-.log",
         rollingInterval: RollingInterval.Day,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}",
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} | {Message:lj}{NewLine}{Exception}",
         retainedFileCountLimit: 7)
+    .WriteTo.Seq("http://localhost:5341")
     .CreateLogger();
 
 try
@@ -81,7 +87,7 @@ builder.Services.AddMassTransit(x =>
 
     var host = builder.Build();
 
-    Log.Information("💚 InventoryService started successfully");
+    Log.Information("InventoryService started successfully");
     await host.RunAsync();
 }
 catch (Exception ex)

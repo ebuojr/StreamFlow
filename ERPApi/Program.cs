@@ -11,20 +11,26 @@ using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 
-// Configure Serilog
+// Configure Serilog with professional formatting
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Service", "ERPApi")
-    .Enrich.WithCorrelationId()
-    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+    .Enrich.WithProperty("Environment", "Development")
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .WriteTo.Console(outputTemplate: 
+        "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} | {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "logs/erpapi-.log",
         rollingInterval: RollingInterval.Day,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}",
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}",
         retainedFileCountLimit: 7)
+    .WriteTo.Seq("http://localhost:5341",
+        apiKey: null,
+        restrictedToMinimumLevel: LogEventLevel.Information)
     .CreateLogger();
 
 try
@@ -39,12 +45,15 @@ builder.Host.UseSerilog();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// CORS - Allow all origins, methods, and headers
+// HttpClient for external API calls
+builder.Services.AddHttpClient();
+
+// CORS - Allow Blazor client
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:5035", "https://localhost:7103")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -88,7 +97,7 @@ builder.Services.AddMassTransit(x =>
         cfg.Publish<Contracts.Events.OrderInvalid>(x => x.ExchangeType = "topic");
         
         // Configure exchanges for events we CONSUME (tell consumers to use topic exchange, not fanout)
-        // ⚠️ CRITICAL: We must also configure Publish<> for consumed events to set exchange type to topic!
+        // CRITICAL: We must also configure Publish<> for consumed events to set exchange type to topic!
         cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
         cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
         

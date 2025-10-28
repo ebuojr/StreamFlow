@@ -17,7 +17,7 @@ namespace PackingService.Consumers
             var messageType = typeof(T).Name;
 
             _logger.LogError(
-                "📦❌ [PACKING-DLC] Faulted message: Type={MessageType}, FaultId={FaultId}, Timestamp={Timestamp}",
+                "[PACKING-DLC] Faulted message: Type={MessageType}, FaultId={FaultId}, Timestamp={Timestamp}",
                 messageType,
                 fault.FaultId,
                 fault.Timestamp);
@@ -27,14 +27,14 @@ namespace PackingService.Consumers
                 foreach (var ex in fault.Exceptions)
                 {
                     _logger.LogError(
-                        "📦❌ [PACKING-DLC] Exception: {ExceptionType} - {Message}",
+                        "[PACKING-DLC] Exception: {ExceptionType} - {Message}",
                         ex.ExceptionType,
                         ex.Message);
                 }
             }
 
             _logger.LogWarning(
-                "📦⚠️ [PACKING-DLC] Fault stored for manual review: {MessageType} [FaultId={FaultId}]",
+                "[PACKING-DLC] Fault stored for manual review: {MessageType} [FaultId={FaultId}]",
                 messageType,
                 fault.FaultId);
 

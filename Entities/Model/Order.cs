@@ -11,6 +11,7 @@ namespace Entities.Model
         public string CountryCode { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public Guid CustomerId { get; set; }
+        public string CorrelationId { get; set; } = Guid.NewGuid().ToString(); // For tracking across services
         public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
         public Customer Customer { get; set; } = null!;
         public Payment Payment { get; set; } = null!;

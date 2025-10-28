@@ -15,7 +15,9 @@ namespace ERPApi.Consumers
         private readonly OrderDbContext _context;
         private readonly ILogger<StockReservedConsumer> _logger;
 
-        public StockReservedConsumer(OrderDbContext context, ILogger<StockReservedConsumer> logger)
+        public StockReservedConsumer(
+            OrderDbContext context, 
+            ILogger<StockReservedConsumer> logger)
         {
             _context = context;
             _logger = logger;
@@ -56,7 +58,7 @@ namespace ERPApi.Consumers
                     }
                     
                     var availableSkusLog = string.Join(", ", message.Items.Select(i => $"{i.Sku} (Qty: {i.Quantity})"));
-                    _logger.LogWarning("⚠️ [PARTIAL FULFILLMENT] Order {OrderId} has partial stock availability. " +
+                    _logger.LogWarning("Order {OrderId} has partial stock availability. " +
                         "Available items: [{AvailableItems}] (CorrelationId: {CorrelationId})",
                         message.OrderId, availableSkusLog, message.CorrelationId);
                 }
@@ -72,7 +74,7 @@ namespace ERPApi.Consumers
                 _context.Orders.Update(order);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Updated Order {OrderId} state to {OrderState}, {ReservedCount}/{TotalCount} items marked as Available (CorrelationId: {CorrelationId})",
+                _logger.LogInformation("Order {OrderId} state updated to {OrderState}. Reserved: {Reserved}/{Requested} (CorrelationId: {CorrelationId})",
                     message.OrderId, order.OrderState, message.TotalReserved, message.TotalRequested, message.CorrelationId);
             }
             catch (Exception ex)
