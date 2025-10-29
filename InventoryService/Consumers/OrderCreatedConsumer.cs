@@ -6,9 +6,10 @@ namespace InventoryService.Consumers
 {
     public class OrderCreatedConsumer : IConsumer<OrderCreated>
     {
+        private const double ITEM_AVAILABILITY_RATE = 0.80;
+
         private readonly ILogger<OrderCreatedConsumer> _logger;
         private readonly Random _random = new Random();
-        private const double ITEM_AVAILABILITY_RATE = 0.80; // 80% chance each item is in stock
 
         public OrderCreatedConsumer(ILogger<OrderCreatedConsumer> logger)
         {
@@ -20,19 +21,16 @@ namespace InventoryService.Consumers
             var orderCreated = context.Message;
             
             _logger.LogInformation(
-                "💚 [INVENTORY] Received OrderCreated: OrderId={OrderId}, OrderNo={OrderNo}, Type={OrderType}, Priority={Priority}, TotalItems={TotalItems}, CorrelationId={CorrelationId}",
+                "[Inventory-Service] Order received. OrderId={OrderId}, OrderNo={OrderNo}, Type={OrderType}, Priority={Priority}, Items={TotalItems}",
                 orderCreated.OrderId,
                 orderCreated.OrderNo,
                 orderCreated.OrderType,
                 orderCreated.Priority,
-                orderCreated.TotalItems,
-                orderCreated.CorrelationId);
+                orderCreated.TotalItems);
 
-            // Perform random inventory check (80% availability per item)
             var checkDelay = (orderCreated.OrderType == "Priority" && orderCreated.Priority == 9) ? 100 : 500;
-            await Task.Delay(checkDelay); // Simulate inventory check time
+            await Task.Delay(checkDelay);
 
-            // Check availability for each item (random: 80% chance each is in stock)
             var availableItems = new List<OrderItemDto>();
             var unavailableItems = new List<OrderItemDto>();
 
@@ -50,16 +48,14 @@ namespace InventoryService.Consumers
                 }
             }
 
-            // Scenario 1: NO items available (rare)
             if (availableItems.Count == 0)
             {
                 var unavailableSkus = string.Join(", ", unavailableItems.Select(i => i.Sku));
                 
                 _logger.LogWarning(
-                    "❌ [INVENTORY] NO items available for OrderNo={OrderNo}. Unavailable SKUs: [{Skus}]. Publishing StockUnavailable. [CorrelationId={CorrelationId}]",
+                    "[Inventory-Service] No items available. OrderNo={OrderNo}, UnavailableSkus=[{Skus}]",
                     orderCreated.OrderNo,
-                    unavailableSkus,
-                    orderCreated.CorrelationId);
+                    unavailableSkus);
 
                 await context.Publish(new StockUnavailable
                 {
@@ -70,7 +66,6 @@ namespace InventoryService.Consumers
                     CheckedAt = DateTime.UtcNow
                 });
             }
-            // Scenario 2: FULL or PARTIAL availability (merged into single event)
             else
             {
                 bool isPartial = unavailableItems.Count > 0;
@@ -83,18 +78,16 @@ namespace InventoryService.Consumers
                     var unavailableSkus = string.Join(", ", unavailableItems.Select(i => i.Sku));
                     
                     _logger.LogWarning(
-                        "⚠️ [INVENTORY] PARTIAL availability for OrderNo={OrderNo}. Available: [{AvailableSkus}], Unavailable: [{UnavailableSkus}]. Publishing StockReserved with IsPartialReservation=true. [CorrelationId={CorrelationId}]",
+                        "[Inventory-Service] Partial availability. OrderNo={OrderNo}, Available=[{AvailableSkus}], Unavailable=[{UnavailableSkus}]",
                         orderCreated.OrderNo,
                         availableSkus,
-                        unavailableSkus,
-                        orderCreated.CorrelationId);
+                        unavailableSkus);
                 }
                 else
                 {
                     _logger.LogInformation(
-                        "💚 [INVENTORY] ✅ All items available for OrderNo={OrderNo}. Publishing StockReserved with IsPartialReservation=false. [CorrelationId={CorrelationId}]",
-                        orderCreated.OrderNo,
-                        orderCreated.CorrelationId);
+                        "[Inventory-Service] All items available. OrderNo={OrderNo}",
+                        orderCreated.OrderNo);
                 }
 
                 await context.Publish(new StockReserved

@@ -3,10 +3,6 @@ using MassTransit;
 
 namespace ERPApi.Consumers
 {
-    /// <summary>
-    /// Consumes OrderInvalid events and logs them for manual review.
-    /// Invalid orders are logged to Seq for investigation.
-    /// </summary>
     public class OrderInvalidConsumer : IConsumer<OrderInvalid>
     {
         private readonly ILogger<OrderInvalidConsumer> _logger;
@@ -21,18 +17,11 @@ namespace ERPApi.Consumers
             var message = context.Message;
             
             _logger.LogWarning(
-                "⚠️ [INVALID ORDER] Received invalid order {OrderId}. Reason: {Reason}. Errors: {Errors} (CorrelationId: {CorrelationId})",
+                "[ERP-Api] Invalid order received. OrderId={OrderId}, Reason={Reason}, Errors={Errors}",
                 message.OrderId,
                 message.Reason,
-                string.Join(", ", message.ValidationErrors),
-                message.CorrelationId);
+                string.Join(", ", message.ValidationErrors));
 
-            // Note: Invalid orders are automatically logged by Serilog and available in Seq
-            // MassTransit also stores failed messages in dead letter queue
-            
-            // TODO: Send notification to operations team
-            // TODO: Create ticket in support system
-            
             await Task.CompletedTask;
         }
     }

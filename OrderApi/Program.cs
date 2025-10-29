@@ -58,7 +58,7 @@ builder.Services.AddMassTransit(x =>
 {
     x.SetKebabCaseEndpointNameFormatter();
 
-    x.AddRequestClient<CreateOrderRequest>(new Uri("queue:create-order-request"));
+    x.AddRequestClient<CreateOrderRequest>(new Uri("queue:create-order-request"), timeout: RequestTimeout.After(m: 1));
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(rabbitMqSettings.Host, rabbitMqSettings.Port, h =>

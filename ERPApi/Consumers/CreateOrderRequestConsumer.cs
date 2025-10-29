@@ -9,17 +9,6 @@ using System.Text.Json;
 
 namespace ERPApi.Consumers
 {
-    /// <summary>
-    /// Consumes CreateOrderRequest messages and creates orders using Request/Reply pattern.
-    /// Responds with CreateOrderResponse containing order number or error details.
-    /// 
-    /// Error Handling Strategy:
-    /// - Validation errors: Publish to erp-invalid-order queue, respond with error
-    /// - Transient errors (DB deadlocks, connection issues): Throws to trigger MassTransit retry (3 attempts)
-    /// - Business errors (validation, not found): Responds with error, NO retry (prevents wasteful retries)
-    /// 
-    /// EIP Pattern: Request-Reply with Invalid Message Channel
-    /// </summary>
     public class CreateOrderRequestConsumer : IConsumer<CreateOrderRequest>
     {
         private readonly IOrderService _orderService;
@@ -47,21 +36,19 @@ namespace ERPApi.Consumers
                 ["CustomerId"] = request.Order.CustomerId
             }))
             {
-                _logger.LogInformation("Received CreateOrderRequest for Customer {CustomerId}",
+                _logger.LogInformation("[ERP-Api] CreateOrderRequest received. CustomerId={CustomerId}",
                     request.Order.CustomerId);
 
-                // ✅ EARLY VALIDATION - Catch invalid orders before DB operations using FluentValidation
                 var validationResult = await _orderValidator.ValidateAsync(request.Order);
             
             if (!validationResult.IsValid)
             {
                 var validationErrors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
                 
-                _logger.LogWarning("Order validation failed for Customer {CustomerId}. Errors: {Errors}",
+                _logger.LogWarning("[ERP-Api] Order validation failed. CustomerId={CustomerId}, Errors={Errors}",
                     request.Order.CustomerId,
                     string.Join(", ", validationErrors));
 
-                // Publish OrderInvalid event to erp-invalid-order queue
                 await context.Publish(new OrderInvalid
                 {
                     OrderId = request.Order.Id,
@@ -72,7 +59,6 @@ namespace ERPApi.Consumers
                     OrderJson = JsonSerializer.Serialize(request.Order)
                 });
 
-                // Respond with validation error to client
                 await context.RespondAsync(new CreateOrderResponse
                 {
                     OrderNo = 0,
@@ -80,20 +66,18 @@ namespace ERPApi.Consumers
                     ErrorMessage = $"Validation failed: {string.Join("; ", validationErrors)}"
                 });
 
-                _logger.LogInformation("Published OrderInvalid event and responded with validation errors");
+                _logger.LogInformation("[ERP-Api] OrderInvalid event published.");
 
-                return; // Don't process invalid order further
+                return;
             }
 
             try
             {
-                // Create order and publish enriched event via Transactional Outbox
                 var orderNo = await _orderService.CreateAndSendOrderAsync(request.Order);
 
-                _logger.LogInformation("Order created with OrderNo: {OrderNo} for Customer: {CustomerId}",
+                _logger.LogInformation("[ERP-Api] Order created. OrderNo={OrderNo}, CustomerId={CustomerId}",
                     orderNo, request.Order.CustomerId);
 
-                // Respond with success
                 await context.RespondAsync(new CreateOrderResponse
                 {
                     OrderNo = orderNo,
@@ -101,29 +85,24 @@ namespace ERPApi.Consumers
                     ErrorMessage = string.Empty
                 });
             }
-            catch (DbUpdateException ex) // Transient database errors (deadlocks, connection issues)
+            catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Transient DB error creating order for Customer {CustomerId} - will retry",
+                _logger.LogError(ex, "[ERP-Api] Transient DB error. CustomerId={CustomerId}, Will retry.",
                     request.Order.CustomerId);
                 
-                // Rethrow to trigger MassTransit retry policy for transient errors
                 throw;
             }
-            catch (Exception ex) // Business validation errors (non-retryable)
+            catch (Exception ex)
             {
-                _logger.LogError(ex, "Business error creating order for Customer {CustomerId} - no retry",
+                _logger.LogError(ex, "[ERP-Api] Business error. CustomerId={CustomerId}, No retry.",
                     request.Order.CustomerId);
 
-                // Respond with error - client needs immediate feedback
                 await context.RespondAsync(new CreateOrderResponse
                 {
                     OrderNo = 0,
                     IsSuccessfullyCreated = false,
                     ErrorMessage = ex.Message + (ex.InnerException != null ? " | " + ex.InnerException.Message : string.Empty)
                 });
-
-                // ✅ DON'T throw - request complete, client already notified
-                // No point retrying business validation errors (customer not found, invalid SKU, etc.)
             }
             }
         }

@@ -3,12 +3,6 @@ using MassTransit;
 
 namespace PickingService.Consumers
 {
-    /// <summary>
-    /// Consumes StockReserved events from InventoryApi and simulates picking work.
-    /// Uses enriched event data (Content Enricher pattern) - no HTTP calls needed.
-    /// Publishes OrderPicked event when picking is complete.
-    /// Supports priority queue with 9=Priority (DK), 1=Standard.
-    /// </summary>
     public class StockReservedConsumer : IConsumer<StockReserved>
     {
         private readonly ILogger<StockReservedConsumer> _logger;
@@ -22,21 +16,18 @@ namespace PickingService.Consumers
         {
             var message = context.Message;
             
-            var logPrefix = message.IsPartialReservation ? "⚠️ [PARTIAL PICKING STARTED]" : "🔍 [PICKING STARTED]";
-            _logger.LogInformation("{Prefix} Order {OrderId} | Type: {OrderType} | Items: {ItemCount} | Partial: {IsPartial} ({Reserved}/{Requested}) | CorrelationId: {CorrelationId}",
-                logPrefix, message.OrderId, message.OrderType, message.Items.Count, message.IsPartialReservation, 
-                message.TotalReserved, message.TotalRequested, message.CorrelationId);
+            var partial = message.IsPartialReservation ? "Partial" : "Full";
+            _logger.LogInformation("[Picking-Service] Picking started. OrderId={OrderId}, Type={OrderType}, Items={ItemCount}, Status={Status} ({Reserved}/{Requested})",
+                message.OrderId, message.OrderType, message.Items.Count, partial, message.TotalReserved, message.TotalRequested);
 
             try
             {
-                // Simulate picking work (2-5 seconds)
                 var pickingTime = Random.Shared.Next(2000, 5001);
-                _logger.LogInformation("⏳ Picking Order {OrderId} - estimated time: {PickingTime}ms (CorrelationId: {CorrelationId})",
-                    message.OrderId, pickingTime, message.CorrelationId);
+                _logger.LogInformation("[Picking-Service] Processing order. OrderId={OrderId}, EstimatedTime={PickingTime}ms",
+                    message.OrderId, pickingTime);
                 
                 await Task.Delay(pickingTime, context.CancellationToken);
 
-                // Picking complete - publish OrderPicked event with enriched data
                 var orderPicked = new OrderPicked
                 {
                     OrderId = message.OrderId,
@@ -48,22 +39,20 @@ namespace PickingService.Consumers
                     ShippingAddress = message.ShippingAddress
                 };
 
-                // Publish with priority header for downstream priority queue
                 var priority = message.OrderType == "Priority" ? (byte)9 : (byte)1;
                 await context.Publish(orderPicked, ctx =>
                 {
                     ctx.Headers.Set("priority", priority);
                 });
 
-                var completionPrefix = message.IsPartialReservation ? "✅ [PARTIAL PICKING COMPLETED]" : "✅ [PICKING COMPLETED]";
-                _logger.LogInformation("{Prefix} Order {OrderId} | Picked {Picked}/{Requested} items | Actual time: {ActualTime}ms | Priority: {Priority} | Published OrderPicked event (CorrelationId: {CorrelationId})",
-                    completionPrefix, message.OrderId, message.TotalReserved, message.TotalRequested, pickingTime, priority, message.CorrelationId);
+                _logger.LogInformation("[Picking-Service] Picking completed. OrderId={OrderId}, Picked={Picked}/{Requested}, Time={ActualTime}ms, Priority={Priority}",
+                    message.OrderId, message.TotalReserved, message.TotalRequested, pickingTime, priority);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ [PICKING FAILED] Order {OrderId} (CorrelationId: {CorrelationId})",
-                    message.OrderId, message.CorrelationId);
-                throw; // Let MassTransit handle retry/DLC
+                _logger.LogError(ex, "[Picking-Service] Picking failed. OrderId={OrderId}",
+                    message.OrderId);
+                throw;
             }
         }
     }

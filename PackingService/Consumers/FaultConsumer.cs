@@ -17,26 +17,21 @@ namespace PackingService.Consumers
             var messageType = typeof(T).Name;
 
             _logger.LogError(
-                "[PACKING-DLC] Faulted message: Type={MessageType}, FaultId={FaultId}, Timestamp={Timestamp}",
+                "[Packing-Service] Faulted message received. MessageType={MessageType}, FaultId={FaultId}, ExceptionCount={ExceptionCount}",
                 messageType,
                 fault.FaultId,
-                fault.Timestamp);
+                fault.Exceptions?.Length ?? 0);
 
-            if (fault.Exceptions != null)
+            if (fault.Exceptions != null && fault.Exceptions.Any())
             {
                 foreach (var ex in fault.Exceptions)
                 {
                     _logger.LogError(
-                        "[PACKING-DLC] Exception: {ExceptionType} - {Message}",
+                        "[Packing-Service] Exception: {ExceptionType} - {Message}",
                         ex.ExceptionType,
                         ex.Message);
                 }
             }
-
-            _logger.LogWarning(
-                "[PACKING-DLC] Fault stored for manual review: {MessageType} [FaultId={FaultId}]",
-                messageType,
-                fault.FaultId);
 
             await Task.CompletedTask;
         }

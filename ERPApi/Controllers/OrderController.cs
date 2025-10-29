@@ -127,15 +127,15 @@ namespace ERPApi.Controllers
         {
             return state switch
             {
-                "Created" => "✅ Order received and is being processed",
-                "StockReserved" => "📦 Stock has been reserved for your order",
-                "PartialDelivered" => "⚠️ Some items are unavailable - partial fulfillment in progress",
-                "Picked" => "👷 Your order has been picked from the warehouse",
-                "Packed" => "📮 Your order has been packed and is ready for shipping",
-                "StockUnavailable" => "❌ All items in your order are out of stock",
-                "Failed" => "⚠️ There was an issue processing your order",
-                "Pending" => "⏳ Order is pending",
-                _ => "🔄 Your order is being processed"
+                "Created" => "Order received and is being processed",
+                "StockReserved" => "Stock has been reserved for your order",
+                "PartialDelivered" => "Some items are unavailable - partial fulfillment in progress",
+                "Picked" => "Your order has been picked from the warehouse",
+                "Packed" => "Your order has been packed and is ready for shipping",
+                "StockUnavailable" => "All items in your order are out of stock",
+                "Failed" => "There was an issue processing your order",
+                "Pending" => "Order is pending",
+                _ => "Your order is being processed"
             };
         }
 

@@ -6,10 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace ERPApi.Consumers
 {
-    /// <summary>
-    /// Consumes StockReserved events and updates order state in database.
-    /// Event-driven state update (no HTTP calls).
-    /// </summary>
     public class StockReservedConsumer : IConsumer<StockReserved>
     {
         private readonly OrderDbContext _context;
@@ -27,8 +23,8 @@ namespace ERPApi.Consumers
         {
             var message = context.Message;
             
-            _logger.LogInformation("Received StockReserved event for Order {OrderId} | Partial: {IsPartial} ({Reserved}/{Requested}) (CorrelationId: {CorrelationId})",
-                message.OrderId, message.IsPartialReservation, message.TotalReserved, message.TotalRequested, message.CorrelationId);
+            _logger.LogInformation("[ERP-Api] StockReserved event received. OrderId={OrderId}, Partial={IsPartial} ({Reserved}/{Requested})",
+                message.OrderId, message.IsPartialReservation, message.TotalReserved, message.TotalRequested);
 
             try
             {
@@ -38,33 +34,28 @@ namespace ERPApi.Consumers
 
                 if (order == null)
                 {
-                    _logger.LogWarning("Order {OrderId} not found when processing StockReserved event (CorrelationId: {CorrelationId})",
-                        message.OrderId, message.CorrelationId);
+                    _logger.LogWarning("[ERP-Api] Order not found. OrderId={OrderId}",
+                        message.OrderId);
                     return;
                 }
 
-                // Update order state based on partial flag
                 order.OrderState = message.IsPartialReservation ? "PartialDelivered" : "StockReserved";
                 
                 if (message.IsPartialReservation)
                 {
-                    // Create lookup set for reserved SKUs
                     var reservedSkus = new HashSet<string>(message.Items.Select(i => i.Sku ?? string.Empty));
                     
-                    // Mark items as Available or Unavailable based on reservation
                     foreach (var item in order.OrderItems)
                     {
                         item.Status = reservedSkus.Contains(item.Sku ?? string.Empty) ? "Available" : "Unavailable";
                     }
                     
                     var availableSkusLog = string.Join(", ", message.Items.Select(i => $"{i.Sku} (Qty: {i.Quantity})"));
-                    _logger.LogWarning("Order {OrderId} has partial stock availability. " +
-                        "Available items: [{AvailableItems}] (CorrelationId: {CorrelationId})",
-                        message.OrderId, availableSkusLog, message.CorrelationId);
+                    _logger.LogWarning("[ERP-Api] Partial stock availability. OrderId={OrderId}, AvailableItems=[{AvailableItems}]",
+                        message.OrderId, availableSkusLog);
                 }
                 else
                 {
-                    // Full stock reserved - mark all items as Available
                     foreach (var item in order.OrderItems)
                     {
                         item.Status = "Available";
@@ -74,13 +65,13 @@ namespace ERPApi.Consumers
                 _context.Orders.Update(order);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Order {OrderId} state updated to {OrderState}. Reserved: {Reserved}/{Requested} (CorrelationId: {CorrelationId})",
-                    message.OrderId, order.OrderState, message.TotalReserved, message.TotalRequested, message.CorrelationId);
+                _logger.LogInformation("[ERP-Api] Order state updated. OrderId={OrderId}, State={OrderState}, Reserved={Reserved}/{Requested}",
+                    message.OrderId, order.OrderState, message.TotalReserved, message.TotalRequested);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating order state for Order {OrderId} (CorrelationId: {CorrelationId})",
-                    message.OrderId, message.CorrelationId);
+                _logger.LogError(ex, "[ERP-Api] Error updating order state. OrderId={OrderId}",
+                    message.OrderId);
                 throw;
             }
         }

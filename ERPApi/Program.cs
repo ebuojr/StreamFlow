@@ -73,15 +73,11 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderInvalidConsumer>();
     
-    // ✨ Enable MassTransit EF Core Outbox for transactional event publishing
     x.AddEntityFrameworkOutbox<OrderDbContext>(o =>
     {
-        o.UseSqlite(); // Use SQLite for outbox tables
-        o.UseBusOutbox(); // Publish events immediately after transaction commit
+        o.UseSqlite();
+        o.UseBusOutbox();
     });
-    
-    // Note: FaultConsumer<T> instances are manually created in the erp-dead-letter endpoint
-    // because MassTransit doesn't support registering open generic types
     
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -91,19 +87,12 @@ builder.Services.AddMassTransit(x =>
             h.Password(rabbitMqSettings.Password);
         });
 
-        // ✅ EXPLICITLY CONFIGURE TOPIC EXCHANGES (FIX FOR FANOUT ISSUE)
-        // MassTransit 8.x requires explicit exchange type configuration
-        
-        // Configure exchange for OrderCreated event (only event we PUBLISH from ERPApi via OutboxWorker)
         cfg.Message<Contracts.Events.OrderCreated>(x => x.SetEntityName("Contracts.Events:OrderCreated"));
         cfg.Publish<Contracts.Events.OrderCreated>(x => x.ExchangeType = "topic");
         
-        // Configure exchange for OrderInvalid event (published when validation fails)
         cfg.Message<Contracts.Events.OrderInvalid>(x => x.SetEntityName("Contracts.Events:OrderInvalid"));
         cfg.Publish<Contracts.Events.OrderInvalid>(x => x.ExchangeType = "topic");
         
-        // Configure exchanges for events we CONSUME (tell consumers to use topic exchange, not fanout)
-        // CRITICAL: We must also configure Publish<> for consumed events to set exchange type to topic!
         cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
         cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
         

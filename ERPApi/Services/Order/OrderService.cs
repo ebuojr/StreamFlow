@@ -95,25 +95,21 @@ namespace ERPApi.Services.Order
                     CreatedAt = DateTime.UtcNow
                 };
 
-                // 3. ✨ Publish event (MassTransit stores in outbox table automatically)
                 await publishEndpoint.Publish(enrichedEvent);
-                
                 await context.SaveChangesAsync();
-                
-                // 4. Commit transaction - both order and MassTransit outbox message saved atomically
                 await transaction.CommitAsync();
                 
                 logger.LogInformation(
-                    "Order {OrderNo} created and event published via MassTransit outbox. Type: {OrderType}, Priority: {Priority} [CorrelationId: {CorrelationId}]", 
-                    createdOrderNo, enrichedEvent.OrderType, enrichedEvent.Priority, correlationId);
+                    "[ERP-Api] Order created and event published. OrderNo={OrderNo}, Type={OrderType}, Priority={Priority}", 
+                    createdOrderNo, enrichedEvent.OrderType, enrichedEvent.Priority);
                 
                 return createdOrderNo;
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                logger.LogError(ex, "Failed to create order with ID {OrderId} [CorrelationId: {CorrelationId}]", 
-                    order.Id, correlationId);
+                logger.LogError(ex, "[ERP-Api] Failed to create order. OrderId={OrderId}", 
+                    order.Id);
                 throw;
             }
         }
