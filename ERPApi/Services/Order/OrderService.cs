@@ -14,15 +14,18 @@ namespace ERPApi.Services.Order
     {
         private readonly IOrderRepository orderRepository;
         private readonly OrderDbContext context;
+        private readonly IPublishEndpoint publishEndpoint;
         private readonly ILogger<OrderService> logger;
 
         public OrderService(
             IOrderRepository orderRepository,
             OrderDbContext context,
+            IPublishEndpoint publishEndpoint,
             ILogger<OrderService> logger)
         {
             this.orderRepository = orderRepository;
             this.context = context;
+            this.publishEndpoint = publishEndpoint;
             this.logger = logger;
         }
 
@@ -38,7 +41,7 @@ namespace ERPApi.Services.Order
                 throw new ArgumentException($"Order validation failed: {string.Join(", ", validationErrors)}");
             }
 
-            // Begin transaction - store order + outbox message atomically
+            // Begin transaction - store order + MassTransit outbox message atomically
             using var transaction = await context.Database.BeginTransactionAsync();
             
             try
@@ -92,24 +95,16 @@ namespace ERPApi.Services.Order
                     CreatedAt = DateTime.UtcNow
                 };
 
-                // 3. Store enriched event in outbox (same transaction)
-                var outboxMessage = new Outbox
-                {
-                    Id = Guid.NewGuid(),
-                    MessageType = nameof(OrderCreated),
-                    Payload = JsonSerializer.Serialize(enrichedEvent),
-                    CreatedAt = DateTime.UtcNow,
-                    RetryCount = 0
-                };
+                // 3. ✨ Publish event (MassTransit stores in outbox table automatically)
+                await publishEndpoint.Publish(enrichedEvent);
                 
-                context.OutboxMessages.Add(outboxMessage);
                 await context.SaveChangesAsync();
                 
-                // 4. Commit transaction - both order and outbox message are saved atomically
+                // 4. Commit transaction - both order and MassTransit outbox message saved atomically
                 await transaction.CommitAsync();
                 
                 logger.LogInformation(
-                    "Order {OrderNo} and outbox message stored successfully. Type: {OrderType}, Priority: {Priority} [CorrelationId: {CorrelationId}]", 
+                    "Order {OrderNo} created and event published via MassTransit outbox. Type: {OrderType}, Priority: {Priority} [CorrelationId: {CorrelationId}]", 
                     createdOrderNo, enrichedEvent.OrderType, enrichedEvent.Priority, correlationId);
                 
                 return createdOrderNo;

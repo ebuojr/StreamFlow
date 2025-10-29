@@ -7,7 +7,5 @@
         Task<IEnumerable<Entities.Model.Order>> GetOrderByState(string state);
         Task<Entities.Model.Order> GetOrderById(Guid id);
         Task<bool> UpdateOrderState(Guid id, string state);
-        Task MarkOrderSentToPicking(int orderNo);
-        Task<bool> AlreadySentToPicking(int orderNo);
     }
 }

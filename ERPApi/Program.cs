@@ -3,7 +3,6 @@ using ERPApi.Consumers;
 using ERPApi.DBContext;
 using ERPApi.Repository.Order;
 using ERPApi.Services.Order;
-using ERPApi.Workers;
 using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -73,6 +72,13 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<ERPApi.Consumers.OrderPickedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
     x.AddConsumer<ERPApi.Consumers.OrderInvalidConsumer>();
+    
+    // ✨ Enable MassTransit EF Core Outbox for transactional event publishing
+    x.AddEntityFrameworkOutbox<OrderDbContext>(o =>
+    {
+        o.UseSqlite(); // Use SQLite for outbox tables
+        o.UseBusOutbox(); // Publish events immediately after transaction commit
+    });
     
     // Note: FaultConsumer<T> instances are manually created in the erp-dead-letter endpoint
     // because MassTransit doesn't support registering open generic types
@@ -154,28 +160,22 @@ builder.Services.AddMassTransit(x =>
         {
             // Fault consumer for Request-Reply pattern
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>(
-                context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>>>()));
             
             // Fault consumers for event-driven state updates
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>(
-                context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>>>()));
             
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>(
-                context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>>>()));
             
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>(
-                context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>>>()));
             
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>(
-                context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>>>()));
             
             e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>(
-                context.GetRequiredService<OrderDbContext>(),
                 context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>>>()));
         });
 
@@ -194,9 +194,6 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 
 // FluentValidation
 builder.Services.AddScoped<IValidator<Entities.Model.Order>, ERPApi.Services.Validation.OrderValidator>();
-
-// Register OutboxPublisher background service
-builder.Services.AddHostedService<OutboxPublisherWorker>();
 
 // Health Checks
 builder.Services.AddHealthChecks()

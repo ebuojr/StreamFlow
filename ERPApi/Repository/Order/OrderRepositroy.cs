@@ -62,26 +62,5 @@ namespace ERPApi.Repository.Order
             await _context.SaveChangesAsync();
             return true;
         }
-
-        public async Task<bool> AlreadySentToPicking(int orderNo)
-        {
-            return await _context.OrderSentToPickings.AnyAsync(o => o.OrderNo == orderNo);
-        }
-
-        public async Task MarkOrderSentToPicking(int orderNo)
-        {
-            var order = await _context.Orders.FirstOrDefaultAsync(o => o.OrderNo == orderNo);
-            if (order != null)
-            {
-                var orderSent = new Entities.Model.OrderSentToPicking
-                {
-                    Id = Guid.NewGuid(),
-                    OrderNo = orderNo,
-                    SentTime = DateTime.UtcNow
-                };
-                _context.OrderSentToPickings.Add(orderSent);
-                await _context.SaveChangesAsync();
-            }
-        }
     }
 }
