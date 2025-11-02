@@ -121,5 +121,40 @@ namespace ERPApi.Controllers
                 return StatusCode(500, new { error = "Internal server error", message = ex.Message });
             }
         }
+
+        [HttpGet("by-orderid/{orderId}")]
+        public async Task<IActionResult> GetLogsByOrderId(string orderId, [FromQuery] int count = 100)
+        {
+            try
+            {
+                var httpClient = _httpClientFactory.CreateClient();
+                // Search by OrderId (GUID) property in Seq with render=false for direct array response
+                var filter = Uri.EscapeDataString($"OrderId='{orderId}'");
+                var seqUrl = $"http://localhost:5341/api/events?filter={filter}&count={count}&render=false";
+                
+                _logger.LogInformation("Fetching logs for OrderId {OrderId} from Seq", orderId);
+                
+                var response = await httpClient.GetAsync(seqUrl);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Seq API returned status code: {StatusCode}", response.StatusCode);
+                    return StatusCode((int)response.StatusCode, "Failed to fetch logs from Seq");
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                return Content(content, "application/json");
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Failed to connect to Seq API");
+                return StatusCode(503, new { error = "Seq service is unavailable", message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching logs from Seq");
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
     }
 }

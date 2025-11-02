@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
 
 namespace Entities.Model
 {
@@ -11,7 +12,11 @@ namespace Entities.Model
         public string CountryCode { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public Guid CustomerId { get; set; }
-        public string CorrelationId { get; set; } = Guid.NewGuid().ToString(); // For tracking across services
+        public string CorrelationId { get; set; } = Guid.NewGuid().ToString();
+        
+        [Timestamp]
+        public byte[]? RowVersion { get; set; }
+        
         public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
         public Customer Customer { get; set; } = null!;
         public Payment Payment { get; set; } = null!;

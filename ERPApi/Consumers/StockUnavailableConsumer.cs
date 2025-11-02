@@ -28,39 +28,66 @@ namespace ERPApi.Consumers
             _logger.LogWarning("Received StockUnavailable event for Order {OrderId}. Unavailable SKUs: {UnavailableSkus} (CorrelationId: {CorrelationId})",
                 message.OrderId, string.Join(", ", message.UnavailableSkus), message.CorrelationId);
 
-            try
+            var maxRetries = 3;
+            var retryCount = 0;
+            
+            while (retryCount < maxRetries)
             {
-                var order = await _context.Orders
-                    .Include(o => o.OrderItems)
-                    .FirstOrDefaultAsync(o => o.Id == message.OrderId);
-
-                if (order == null)
+                try
                 {
-                    _logger.LogWarning("Order {OrderId} not found when processing StockUnavailable event (CorrelationId: {CorrelationId})",
-                        message.OrderId, message.CorrelationId);
+                    var order = await _context.Orders
+                        .Include(o => o.OrderItems)
+                        .FirstOrDefaultAsync(o => o.Id == message.OrderId);
+
+                    if (order == null)
+                    {
+                        _logger.LogWarning("Order {OrderId} not found when processing StockUnavailable event (CorrelationId: {CorrelationId})",
+                            message.OrderId, message.CorrelationId);
+                        return;
+                    }
+
+                    order.OrderState = "StockUnavailable";
+                    
+                    foreach (var item in order.OrderItems)
+                    {
+                        item.Status = "Unavailable";
+                    }
+                    
+                    _context.Orders.Update(order);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation("Updated Order {OrderId} state to StockUnavailable, all {ItemCount} items marked as Unavailable (CorrelationId: {CorrelationId}). Reason: {Reason}",
+                        message.OrderId, order.OrderItems.Count, message.CorrelationId, message.Reason);
+                    
                     return;
                 }
-
-                // Update order state
-                order.OrderState = "StockUnavailable";
-                
-                // Mark all items as Unavailable since no stock is available
-                foreach (var item in order.OrderItems)
+                catch (DbUpdateConcurrencyException ex)
                 {
-                    item.Status = "Unavailable";
+                    retryCount++;
+                    _logger.LogWarning(ex, "Concurrency conflict updating order. OrderId={OrderId}, Retry={RetryCount}/{MaxRetries}",
+                        message.OrderId, retryCount, maxRetries);
+                    
+                    var entry = ex.Entries.FirstOrDefault();
+                    if (entry != null)
+                    {
+                        await entry.ReloadAsync();
+                    }
+                    
+                    if (retryCount >= maxRetries)
+                    {
+                        _logger.LogError(ex, "Failed to update order after {MaxRetries} attempts. OrderId={OrderId}",
+                            maxRetries, message.OrderId);
+                        throw;
+                    }
+                    
+                    await Task.Delay(TimeSpan.FromMilliseconds(100 * retryCount));
                 }
-                
-                _context.Orders.Update(order);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Updated Order {OrderId} state to StockUnavailable, all {ItemCount} items marked as Unavailable (CorrelationId: {CorrelationId}). Reason: {Reason}",
-                    message.OrderId, order.OrderItems.Count, message.CorrelationId, message.Reason);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating order state for Order {OrderId} (CorrelationId: {CorrelationId})",
-                    message.OrderId, message.CorrelationId);
-                throw;
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error updating order state for Order {OrderId} (CorrelationId: {CorrelationId})",
+                        message.OrderId, message.CorrelationId);
+                    throw;
+                }
             }
         }
     }

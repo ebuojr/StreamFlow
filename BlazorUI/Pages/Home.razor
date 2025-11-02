@@ -177,7 +177,7 @@
 @if (showOrderModal && selectedOrder != null)
 {
     <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" @onclick="CloseOrderModal">
-        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden" @onclick:stopPropagation="true">
+        <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden" @onclick:stopPropagation="true">
             <!-- Modal Header -->
             <div class="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
                 <h2 class="text-lg font-bold">Order #@selectedOrder.OrderNo Details</h2>
@@ -248,7 +248,10 @@
                 <div class="p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-sm font-semibold text-gray-900">Order Processing Logs</h3>
-                        <span class="text-xs text-gray-500 font-mono">OrderNo: @selectedOrder.OrderNo</span>
+                        <div class="text-xs text-gray-500 space-y-0.5">
+                            <div><span class="font-medium">OrderNo:</span> <span class="font-mono">@selectedOrder.OrderNo</span></div>
+                            <div><span class="font-medium">OrderId:</span> <span class="font-mono text-[10px]">@selectedOrder.Id</span></div>
+                        </div>
                     </div>
                     
                     @if (isLoadingOrderLogs)
@@ -267,76 +270,39 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
                             <p class="mt-2 text-sm font-medium text-gray-900">No logs found for this order</p>
-                            <p class="text-xs text-gray-500 mt-1">OrderNo: @selectedOrder.OrderNo</p>
+                            <p class="text-xs text-gray-500 mt-1">OrderId: <span class="font-mono">@selectedOrder.Id</span></p>
                             <p class="text-xs text-gray-400 mt-2">Logs may not have been generated yet or may have expired in Seq</p>
                         </div>
                     }
                     else
                     {
-                        <div class="space-y-2">
+                        <div class="space-y-0.5">
                             @foreach (var log in orderLogs)
                             {
-                                <div class="border-l-4 pl-3 py-2 @(log.Level == "Error" ? "border-red-500 bg-red-50" : log.Level == "Warning" ? "border-yellow-500 bg-yellow-50" : "border-blue-500 bg-blue-50") rounded">
-                                    <div class="flex items-start gap-2">
-                                        <span class="@GetLogLevelBadgeClass(log.Level) flex-shrink-0">
-                                            @log.Level
-                                        </span>
-                                        <div class="flex-1 min-w-0">
-                                            @{
-                                                var message = !string.IsNullOrEmpty(log.RenderedMessage) 
-                                                    ? log.RenderedMessage 
-                                                    : log.MessageTemplate;
-                                            }
-                                            <p class="text-sm text-gray-900 break-words font-medium">@message</p>
-                                            
-                                            <div class="flex flex-wrap gap-3 mt-1.5 text-xs">
-                                                <span class="font-mono text-gray-600">
-                                                    @log.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff")
-                                                </span>
-                                                @if (!string.IsNullOrEmpty(log.GetProperty("Service")))
-                                                {
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">
-                                                        @log.GetProperty("Service")
-                                                    </span>
-                                                }
-                                                @if (!string.IsNullOrEmpty(log.GetProperty("SourceContext")))
-                                                {
-                                                    <span class="text-gray-600 truncate max-w-xs" title="@log.GetProperty("SourceContext")">
-                                                        @log.GetProperty("SourceContext")
-                                                    </span>
-                                                }
-                                            </div>
-                                            
-                                            @* Show additional relevant properties *@
-                                            @{
-                                                var orderNo = log.GetProperty("OrderNo");
-                                                var status = log.GetProperty("Status");
-                                                var orderState = log.GetProperty("OrderState");
-                                                var reason = log.GetProperty("Reason");
-                                            }
-                                            @if (!string.IsNullOrEmpty(orderNo) || !string.IsNullOrEmpty(status) || !string.IsNullOrEmpty(orderState) || !string.IsNullOrEmpty(reason))
-                                            {
-                                                <div class="mt-1 text-xs text-gray-600 space-y-0.5">
-                                                    @if (!string.IsNullOrEmpty(orderNo))
-                                                    {
-                                                        <div>OrderNo: <span class="font-mono">@orderNo</span></div>
-                                                    }
-                                                    @if (!string.IsNullOrEmpty(orderState))
-                                                    {
-                                                        <div>State: <span class="font-medium">@orderState</span></div>
-                                                    }
-                                                    @if (!string.IsNullOrEmpty(status))
-                                                    {
-                                                        <div>Status: <span class="font-medium">@status</span></div>
-                                                    }
-                                                    @if (!string.IsNullOrEmpty(reason))
-                                                    {
-                                                        <div>Reason: <span class="italic">@reason</span></div>
-                                                    }
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
+                                var sourceContext = log.GetProperty("SourceContext");
+                                var service = log.GetProperty("Service");
+                                var message = log.GetRenderedMessage();
+                                
+                                <div class="flex items-start gap-3 px-2 py-1.5 hover:bg-gray-50 rounded text-xs border-l-2 border-y-2 border-gray-300 font-mono @(log.Level == "Error" ? "border-red-500" : log.Level == "Warning" ? "border-yellow-500" : "border-blue-400")">
+                                    <!-- Timestamp -->
+                                    <span class="font-bold text-[12px] text-gray-600 flex-shrink-0 w-[80px]">
+                                        @log.Timestamp.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss.fff")
+                                    </span>
+                                    
+                                    <!-- Service -->
+                                    <span class="text-gray-700 flex-shrink-0 w-[120px] truncate" title="@service">
+                                        @service
+                                    </span>
+
+@*                                     <!-- SourceContext -->
+                                    <span class="text-gray-600 flex-shrink-0 w-[300px] truncate text-[11px]" title="@sourceContext">
+                                        @sourceContext
+                                    </span>
+ *@                                    
+                                    <!-- Message -->
+                                    <span class="text-gray-900 flex-1 break-words">
+                                        @message
+                                    </span>
                                 </div>
                             }
                         </div>
@@ -489,8 +455,8 @@
 
         try
         {
-            // Fetch logs by OrderNo since that's what's logged in Serilog
-            var result = await SeqLogService.GetLogsByOrderNoAsync(order.OrderNo, 100);
+            // Fetch logs by OrderId - this traces the order across all services
+            var result = await SeqLogService.GetLogsByOrderIdAsync(order.Id.ToString(), 100);
             orderLogs = result.Events.OrderBy(l => l.Timestamp).ToList();
         }
         catch (Exception ex)

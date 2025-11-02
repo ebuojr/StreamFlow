@@ -26,8 +26,12 @@ namespace ERPApi.DBContext
             {
                 entity.HasKey(e => e.Id);
 
-                // Unique index for OrderNo
                 entity.HasIndex(e => e.OrderNo).IsUnique();
+                
+                // Configure RowVersion for optimistic concurrency control
+                entity.Property(e => e.RowVersion)
+                    .IsRowVersion()
+                    .IsConcurrencyToken();
 
                 // Own simple single-value objects as owned types (flattened columns)
                 entity.OwnsOne(o => o.Customer, cb =>

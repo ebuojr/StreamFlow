@@ -108,6 +108,7 @@ builder.Services.AddMassTransit(x =>
         // Configure the receive endpoint for CreateOrderRequest (Request/Reply pattern)
         cfg.ReceiveEndpoint("create-order-request", e =>
         {
+            e.PrefetchCount = 1; // SQLite: process one message at a time
             e.ConfigureConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         });
@@ -115,24 +116,28 @@ builder.Services.AddMassTransit(x =>
         // Configure receive endpoints for state update events
         cfg.ReceiveEndpoint("erp-stock-reserved", e =>
         {
+            e.PrefetchCount = 1; // SQLite: prevent database lock contention
             e.ConfigureConsumer<ERPApi.Consumers.StockReservedConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         });
         
         cfg.ReceiveEndpoint("erp-stock-unavailable", e =>
         {
+            e.PrefetchCount = 1;
             e.ConfigureConsumer<ERPApi.Consumers.StockUnavailableConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         });
         
         cfg.ReceiveEndpoint("erp-order-picked", e =>
         {
+            e.PrefetchCount = 1;
             e.ConfigureConsumer<ERPApi.Consumers.OrderPickedConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         });
         
         cfg.ReceiveEndpoint("erp-order-packed", e =>
         {
+            e.PrefetchCount = 1;
             e.ConfigureConsumer<ERPApi.Consumers.OrderPackedConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         });
@@ -140,8 +145,8 @@ builder.Services.AddMassTransit(x =>
         // Invalid Order Channel - catch validation failures
         cfg.ReceiveEndpoint("erp-invalid-order", e =>
         {
+            e.PrefetchCount = 1;
             e.ConfigureConsumer<ERPApi.Consumers.OrderInvalidConsumer>(context);
-            // No retry needed - these are permanently invalid orders
         });
         
         // Dead Letter Channel - catch all faulted messages
@@ -172,10 +177,19 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
-// Database
+// Database with SQLite optimized for concurrent access
 builder.Services.AddDbContext<OrderDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    
+    options.UseSqlite(connectionString, sqliteOptions =>
+        {
+            sqliteOptions.CommandTimeout(30);
+        })
+        .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
+        .EnableDetailedErrors(builder.Environment.IsDevelopment());
+},
+ServiceLifetime.Scoped);
 
 // services
 builder.Services.AddScoped<IOrderRepository, OrderRepositroy>();
@@ -184,6 +198,32 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 // FluentValidation
 builder.Services.AddScoped<IValidator<Entities.Model.Order>, ERPApi.Services.Validation.OrderValidator>();
 var app = builder.Build();
+
+// Initialize SQLite for concurrent access (WAL mode)
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
+        var connection = dbContext.Database.GetDbConnection();
+        await connection.OpenAsync();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = @"
+                PRAGMA journal_mode=WAL;
+                PRAGMA busy_timeout=5000;
+                PRAGMA synchronous=NORMAL;
+            ";
+            await command.ExecuteNonQueryAsync();
+        }
+        Log.Information("SQLite initialized with WAL mode for concurrent access");
+    }
+}
+catch (Exception ex)
+{
+    // Ignore errors during design-time (migrations)
+    Log.Debug(ex, "Could not initialize SQLite (likely during design-time)");
+}
 
 app.MapOpenApi();
 app.MapScalarApiReference();

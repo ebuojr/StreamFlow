@@ -10,7 +10,7 @@ public class SeqLogService
     public SeqLogService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        // Use ERPApi as a proxy to avoid CORS issues
+        // Use ERPApi as proxy to avoid CORS issues with Seq
         _httpClient.BaseAddress = new Uri("https://localhost:7033");
     }
 
@@ -18,7 +18,7 @@ public class SeqLogService
     {
         try
         {
-            // Call ERPApi proxy endpoint instead of Seq directly
+            // Call ERPApi proxy endpoint to avoid CORS issues
             var response = await _httpClient.GetAsync($"/api/logs/recent?count={count}");
             
             if (!response.IsSuccessStatusCode)
@@ -26,13 +26,13 @@ public class SeqLogService
 
             var json = await response.Content.ReadAsStringAsync();
             
-            // Seq API with render=true wraps the array in a "value" property
-            var seqResponse = JsonSerializer.Deserialize<SeqApiResponse>(json, new JsonSerializerOptions
+            // ERPApi proxy returns array directly
+            var events = JsonSerializer.Deserialize<List<SeqEvent>>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
 
-            return new SeqEventResponse { Events = seqResponse?.Value ?? new List<SeqEvent>() };
+            return new SeqEventResponse { Events = events ?? new List<SeqEvent>() };
         }
         catch (Exception ex)
         {
@@ -41,69 +41,32 @@ public class SeqLogService
         }
     }
 
-    public async Task<SeqEventResponse> GetLogsByCorrelationIdAsync(string correlationId, int count = 50)
+    public async Task<SeqEventResponse> GetLogsByOrderIdAsync(string orderId, int count = 50)
     {
         try
         {
-            // Call ERPApi proxy endpoint
-            var response = await _httpClient.GetAsync($"/api/logs/by-correlation/{correlationId}?count={count}");
+            // Call ERPApi proxy endpoint to avoid CORS issues
+            var response = await _httpClient.GetAsync($"/api/logs/by-orderid/{orderId}?count={count}");
             
             if (!response.IsSuccessStatusCode)
                 return new SeqEventResponse();
 
             var json = await response.Content.ReadAsStringAsync();
             
-            // Seq API with render=true wraps the array in a "value" property
-            var seqResponse = JsonSerializer.Deserialize<SeqApiResponse>(json, new JsonSerializerOptions
+            // ERPApi proxy returns array directly
+            var events = JsonSerializer.Deserialize<List<SeqEvent>>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
 
-            return new SeqEventResponse { Events = seqResponse?.Value ?? new List<SeqEvent>() };
+            return new SeqEventResponse { Events = events ?? new List<SeqEvent>() };
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in GetLogsByCorrelationIdAsync: {ex.Message}");
+            Console.WriteLine($"Error in GetLogsByOrderIdAsync: {ex.Message}");
             return new SeqEventResponse();
         }
     }
-
-    public async Task<SeqEventResponse> GetLogsByOrderNoAsync(int orderNo, int count = 50)
-    {
-        try
-        {
-            // Call ERPApi proxy endpoint for OrderNo search
-            var response = await _httpClient.GetAsync($"/api/logs/by-order/{orderNo}?count={count}");
-            
-            if (!response.IsSuccessStatusCode)
-                return new SeqEventResponse();
-
-            var json = await response.Content.ReadAsStringAsync();
-            
-            // Seq API with render=true wraps the array in a "value" property
-            var seqResponse = JsonSerializer.Deserialize<SeqApiResponse>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return new SeqEventResponse { Events = seqResponse?.Value ?? new List<SeqEvent>() };
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error in GetLogsByOrderNoAsync: {ex.Message}");
-            return new SeqEventResponse();
-        }
-    }
-}
-
-// Seq API response wrapper when render=true
-public class SeqApiResponse
-{
-    [JsonPropertyName("value")]
-    public List<SeqEvent> Value { get; set; } = new();
-
-    [JsonPropertyName("Count")]
-    public int Count { get; set; }
 }
 
 public class SeqEventResponse
@@ -130,6 +93,10 @@ public class SeqEvent
     [JsonPropertyName("Properties")]
     public List<SeqProperty> Properties { get; set; } = new();
 
+    // MessageTemplateTokens for building the rendered message
+    [JsonPropertyName("MessageTemplateTokens")]
+    public List<MessageTemplateToken> MessageTemplateTokens { get; set; } = new();
+
     public string GetProperty(string key)
     {
         var prop = Properties.FirstOrDefault(p => p.Name == key);
@@ -146,6 +113,73 @@ public class SeqEvent
         }
         return string.Empty;
     }
+
+    public string GetRenderedMessage()
+    {
+        if (!string.IsNullOrEmpty(RenderedMessage))
+            return RenderedMessage;
+
+        // Build message from MessageTemplateTokens if available
+        if (MessageTemplateTokens != null && MessageTemplateTokens.Count > 0)
+        {
+            var messageBuilder = new System.Text.StringBuilder();
+            
+            foreach (var token in MessageTemplateTokens)
+            {
+                if (!string.IsNullOrEmpty(token.Text))
+                {
+                    // This is a literal text token
+                    messageBuilder.Append(token.Text);
+                }
+                else if (!string.IsNullOrEmpty(token.PropertyName))
+                {
+                    // This is a property placeholder - get the value from Properties
+                    var prop = Properties.FirstOrDefault(p => p.Name == token.PropertyName);
+                    if (prop != null && prop.Value != null)
+                    {
+                        var valueStr = prop.Value is JsonElement jsonElement
+                            ? (jsonElement.ValueKind == JsonValueKind.String ? jsonElement.GetString() : jsonElement.ToString())
+                            : prop.Value.ToString();
+                        messageBuilder.Append(valueStr ?? "");
+                    }
+                    else
+                    {
+                        // Fallback to placeholder if property not found
+                        messageBuilder.Append($"{{{token.PropertyName}}}");
+                    }
+                }
+            }
+            
+            return messageBuilder.ToString();
+        }
+
+        // Fallback: Build message from MessageTemplate
+        var message = MessageTemplate;
+        foreach (var prop in Properties)
+        {
+            if (prop.Value != null)
+            {
+                var valueStr = prop.Value is JsonElement jsonElement
+                    ? (jsonElement.ValueKind == JsonValueKind.String ? jsonElement.GetString() : jsonElement.ToString())
+                    : prop.Value.ToString();
+                    
+                message = message.Replace($"{{{prop.Name}}}", valueStr ?? "");
+            }
+        }
+        return message;
+    }
+
+    public List<SeqProperty> GetRelevantProperties()
+    {
+        // Filter out common/noisy properties
+        var excludedProps = new HashSet<string> 
+        { 
+            "Environment", "MachineName", "ThreadId", "Service", "SourceContext",
+            "ActionId", "ActionName", "ConnectionId", "RequestId", "Scope", "EventId"
+        };
+        
+        return Properties.Where(p => !excludedProps.Contains(p.Name)).ToList();
+    }
 }
 
 public class SeqProperty
@@ -155,4 +189,13 @@ public class SeqProperty
 
     [JsonPropertyName("Value")]
     public object? Value { get; set; }
+}
+
+public class MessageTemplateToken
+{
+    [JsonPropertyName("Text")]
+    public string? Text { get; set; }
+
+    [JsonPropertyName("PropertyName")]
+    public string? PropertyName { get; set; }
 }
