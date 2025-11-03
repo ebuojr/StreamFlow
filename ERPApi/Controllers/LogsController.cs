@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 
 namespace ERPApi.Controllers
 {
@@ -9,117 +8,29 @@ namespace ERPApi.Controllers
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<LogsController> _logger;
+        private readonly IConfiguration _configuration;
 
-        public LogsController(IHttpClientFactory httpClientFactory, ILogger<LogsController> logger)
+        public LogsController(IHttpClientFactory httpClientFactory, ILogger<LogsController> logger, IConfiguration configuration)
         {
             _httpClientFactory = httpClientFactory;
             _logger = logger;
+            _configuration = configuration;
         }
 
-        [HttpGet("recent")]
-        public async Task<IActionResult> GetRecentLogs([FromQuery] int count = 50)
+        private HttpClient CreateSeqClient()
         {
-            try
-            {
-                var httpClient = _httpClientFactory.CreateClient();
-                var seqUrl = $"http://localhost:5341/api/events?count={count}&render=true";
-                
-                _logger.LogInformation("Fetching recent logs from Seq: {Url}", seqUrl);
-                
-                var response = await httpClient.GetAsync(seqUrl);
-                
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("Seq API returned status code: {StatusCode}", response.StatusCode);
-                    return StatusCode((int)response.StatusCode, "Failed to fetch logs from Seq");
-                }
+            var client = _httpClientFactory.CreateClient();
+            var seqApiKey = _configuration["Seq:ApiKey"];
 
-                var content = await response.Content.ReadAsStringAsync();
-                var jsonDocument = JsonDocument.Parse(content);
-                
-                return Ok(jsonDocument.RootElement);
-            }
-            catch (HttpRequestException ex)
+            if (!string.IsNullOrEmpty(seqApiKey))
             {
-                _logger.LogError(ex, "Failed to connect to Seq API");
-                return StatusCode(503, new { error = "Seq service is unavailable", message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching logs from Seq");
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
-            }
-        }
+                if (client.DefaultRequestHeaders.Contains("X-Seq-ApiKey"))
+                    client.DefaultRequestHeaders.Remove("X-Seq-ApiKey");
 
-        [HttpGet("by-correlation/{correlationId}")]
-        public async Task<IActionResult> GetLogsByCorrelationId(string correlationId, [FromQuery] int count = 50)
-        {
-            try
-            {
-                var httpClient = _httpClientFactory.CreateClient();
-                var seqUrl = $"http://localhost:5341/api/events?filter=CorrelationId%3D%27{correlationId}%27&count={count}&render=true";
-                
-                _logger.LogInformation("Fetching logs for CorrelationId {CorrelationId} from Seq", correlationId);
-                
-                var response = await httpClient.GetAsync(seqUrl);
-                
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("Seq API returned status code: {StatusCode}", response.StatusCode);
-                    return StatusCode((int)response.StatusCode, "Failed to fetch logs from Seq");
-                }
+                client.DefaultRequestHeaders.Add("X-Seq-ApiKey", seqApiKey);
+            }
 
-                var content = await response.Content.ReadAsStringAsync();
-                var jsonDocument = JsonDocument.Parse(content);
-                
-                return Ok(jsonDocument.RootElement);
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError(ex, "Failed to connect to Seq API");
-                return StatusCode(503, new { error = "Seq service is unavailable", message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching logs from Seq");
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
-            }
-        }
-
-        [HttpGet("by-order/{orderNo}")]
-        public async Task<IActionResult> GetLogsByOrderNo(int orderNo, [FromQuery] int count = 50)
-        {
-            try
-            {
-                var httpClient = _httpClientFactory.CreateClient();
-                // Search by OrderNo property in Seq
-                var seqUrl = $"http://localhost:5341/api/events?filter=OrderNo%3D{orderNo}&count={count}&render=true";
-                
-                _logger.LogInformation("Fetching logs for OrderNo {OrderNo} from Seq", orderNo);
-                
-                var response = await httpClient.GetAsync(seqUrl);
-                
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("Seq API returned status code: {StatusCode}", response.StatusCode);
-                    return StatusCode((int)response.StatusCode, "Failed to fetch logs from Seq");
-                }
-
-                var content = await response.Content.ReadAsStringAsync();
-                var jsonDocument = JsonDocument.Parse(content);
-                
-                return Ok(jsonDocument.RootElement);
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError(ex, "Failed to connect to Seq API");
-                return StatusCode(503, new { error = "Seq service is unavailable", message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching logs from Seq");
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
-            }
+            return client;
         }
 
         [HttpGet("by-orderid/{orderId}")]
@@ -127,32 +38,25 @@ namespace ERPApi.Controllers
         {
             try
             {
-                var httpClient = _httpClientFactory.CreateClient();
-                // Search by OrderId (GUID) property in Seq with render=false for direct array response
+                var httpClient = CreateSeqClient();
+                var seqBaseUrl = _configuration["Seq:BaseUrl"] ?? "http://localhost:5341";
+
                 var filter = Uri.EscapeDataString($"OrderId='{orderId}'");
-                var seqUrl = $"http://localhost:5341/api/events?filter={filter}&count={count}&render=false";
-                
-                _logger.LogInformation("Fetching logs for OrderId {OrderId} from Seq", orderId);
-                
+                var seqUrl = $"{seqBaseUrl}/api/events?filter={filter}&count={count}&render=false";
                 var response = await httpClient.GetAsync(seqUrl);
-                
+
                 if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("Seq API returned status code: {StatusCode}", response.StatusCode);
                     return StatusCode((int)response.StatusCode, "Failed to fetch logs from Seq");
-                }
 
                 var content = await response.Content.ReadAsStringAsync();
                 return Content(content, "application/json");
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(ex, "Failed to connect to Seq API");
                 return StatusCode(503, new { error = "Seq service is unavailable", message = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching logs from Seq");
                 return StatusCode(500, new { error = "Internal server error", message = ex.Message });
             }
         }

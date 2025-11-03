@@ -14,45 +14,18 @@ public class SeqLogService
         _httpClient.BaseAddress = new Uri("https://localhost:7033");
     }
 
-    public async Task<SeqEventResponse> GetRecentLogsAsync(int count = 50)
-    {
-        try
-        {
-            // Call ERPApi proxy endpoint to avoid CORS issues
-            var response = await _httpClient.GetAsync($"/api/logs/recent?count={count}");
-            
-            if (!response.IsSuccessStatusCode)
-                return new SeqEventResponse();
-
-            var json = await response.Content.ReadAsStringAsync();
-            
-            // ERPApi proxy returns array directly
-            var events = JsonSerializer.Deserialize<List<SeqEvent>>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return new SeqEventResponse { Events = events ?? new List<SeqEvent>() };
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error in GetRecentLogsAsync: {ex.Message}");
-            return new SeqEventResponse();
-        }
-    }
-
     public async Task<SeqEventResponse> GetLogsByOrderIdAsync(string orderId, int count = 50)
     {
         try
         {
             // Call ERPApi proxy endpoint to avoid CORS issues
             var response = await _httpClient.GetAsync($"/api/logs/by-orderid/{orderId}?count={count}");
-            
+
             if (!response.IsSuccessStatusCode)
                 return new SeqEventResponse();
 
             var json = await response.Content.ReadAsStringAsync();
-            
+
             // ERPApi proxy returns array directly
             var events = JsonSerializer.Deserialize<List<SeqEvent>>(json, new JsonSerializerOptions
             {
@@ -105,8 +78,8 @@ public class SeqEvent
             // Handle JsonElement from Value property
             if (prop.Value is JsonElement jsonElement)
             {
-                return jsonElement.ValueKind == JsonValueKind.String 
-                    ? jsonElement.GetString() ?? string.Empty 
+                return jsonElement.ValueKind == JsonValueKind.String
+                    ? jsonElement.GetString() ?? string.Empty
                     : jsonElement.ToString();
             }
             return prop.Value.ToString() ?? string.Empty;
@@ -123,7 +96,7 @@ public class SeqEvent
         if (MessageTemplateTokens != null && MessageTemplateTokens.Count > 0)
         {
             var messageBuilder = new System.Text.StringBuilder();
-            
+
             foreach (var token in MessageTemplateTokens)
             {
                 if (!string.IsNullOrEmpty(token.Text))
@@ -149,7 +122,7 @@ public class SeqEvent
                     }
                 }
             }
-            
+
             return messageBuilder.ToString();
         }
 
@@ -162,7 +135,7 @@ public class SeqEvent
                 var valueStr = prop.Value is JsonElement jsonElement
                     ? (jsonElement.ValueKind == JsonValueKind.String ? jsonElement.GetString() : jsonElement.ToString())
                     : prop.Value.ToString();
-                    
+
                 message = message.Replace($"{{{prop.Name}}}", valueStr ?? "");
             }
         }
@@ -172,12 +145,12 @@ public class SeqEvent
     public List<SeqProperty> GetRelevantProperties()
     {
         // Filter out common/noisy properties
-        var excludedProps = new HashSet<string> 
-        { 
+        var excludedProps = new HashSet<string>
+        {
             "Environment", "MachineName", "ThreadId", "Service", "SourceContext",
             "ActionId", "ActionName", "ConnectionId", "RequestId", "Scope", "EventId"
         };
-        
+
         return Properties.Where(p => !excludedProps.Contains(p.Name)).ToList();
     }
 }
