@@ -161,5 +161,10 @@ namespace ERPApi.Services.Order
             return await orderRepository.UpdateOrderState(id, state);
         }
 
+        public async Task<IEnumerable<MassTransit.EntityFrameworkCoreIntegration.OutboxMessage>> GetFaultedMessagesAsync()
+        {
+            return await orderRepository.GetFaultedMessagesAsync();
+        }
+
     }
 }

@@ -7,5 +7,6 @@
         Task<IEnumerable<Entities.Model.Order>> GetOrderByState(string state);
         Task<IEnumerable<Entities.Model.Order>> GetAllOrders();
         Task<bool> UpdateOrderState(Guid id, string status);
+        Task<IEnumerable<MassTransit.EntityFrameworkCoreIntegration.OutboxMessage>> GetFaultedMessagesAsync();
     }
 }

@@ -10,6 +10,19 @@ using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 
+// Load configuration early to get Seq settings
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
+    .Build();
+
+// Get Seq settings - throw exception if not found
+var seqBaseUrl = configuration["Seq:BaseUrl"] 
+    ?? throw new InvalidOperationException("Seq:BaseUrl configuration is missing in appsettings.json");
+var seqApiKey = configuration["Seq:ApiKey"] 
+    ?? throw new InvalidOperationException("Seq:ApiKey configuration is missing in appsettings.json");
+
 // Configure Serilog with professional formatting
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -20,220 +33,231 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.WithProperty("Environment", "Development")
     .Enrich.WithMachineName()
     .Enrich.WithThreadId()
-    .WriteTo.Console(outputTemplate: 
+    .WriteTo.Console(outputTemplate:
         "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} | {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "logs/erpapi-.log",
         rollingInterval: RollingInterval.Day,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}",
         retainedFileCountLimit: 7)
-    .WriteTo.Seq("http://localhost:5341",
-        apiKey: null,
+    .WriteTo.Seq(seqBaseUrl,
+        apiKey: seqApiKey,
         restrictedToMinimumLevel: LogEventLevel.Information)
     .CreateLogger();
 
 try
 {
-    Log.Information("Starting ERPApi");
+    Log.Information("Starting ERPApi with Seq configured at {SeqUrl}", seqBaseUrl);
 
-var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(args);
 
-// Use Serilog for logging
-builder.Host.UseSerilog();
+    // Use Serilog for logging
+    builder.Host.UseSerilog();
 
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+    builder.Services.AddControllers();
+    builder.Services.AddOpenApi();
 
-// HttpClient for external API calls
-builder.Services.AddHttpClient();
+    // HttpClient for external API calls
+    builder.Services.AddHttpClient();
 
-// CORS - Allow Blazor client
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
+    // Configure SeqSettings from configuration
+    var seqSettings = builder.Configuration.GetSection("Seq").Get<SeqSettings>()
+        ?? throw new InvalidOperationException("Seq configuration is missing in appsettings.json");
+    builder.Services.AddSingleton(seqSettings);
+
+    // CORS - Allow Blazor client
+    builder.Services.AddCors(options =>
     {
-        policy.WithOrigins("http://localhost:5035", "https://localhost:7103")
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        options.AddDefaultPolicy(policy =>
+        {
+            policy.WithOrigins("http://localhost:5035", "https://localhost:7103")
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
     });
-});
 
-// MassTransit with RabbitMQ
-var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQSettings").Get<RabbitMqSettings>()
-    ?? throw new InvalidOperationException("RabbitMQ configuration is missing");
-builder.Services.AddMassTransit(x =>
-{
-    x.SetKebabCaseEndpointNameFormatter();
-    
-    // Register consumers
-    x.AddConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>();
-    x.AddConsumer<ERPApi.Consumers.StockReservedConsumer>();
-    x.AddConsumer<ERPApi.Consumers.StockUnavailableConsumer>();
-    x.AddConsumer<ERPApi.Consumers.OrderPickedConsumer>();
-    x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
-    x.AddConsumer<ERPApi.Consumers.OrderInvalidConsumer>();
-    
-    x.AddEntityFrameworkOutbox<OrderDbContext>(o =>
+    // MassTransit with RabbitMQ
+    var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQSettings").Get<RabbitMqSettings>()
+        ?? throw new InvalidOperationException("RabbitMQ configuration is missing");
+    builder.Services.AddMassTransit(x =>
     {
-        o.UseSqlite();
-        o.UseBusOutbox();
+        x.SetKebabCaseEndpointNameFormatter();
+
+        // Register consumers
+        x.AddConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>();
+        x.AddConsumer<ERPApi.Consumers.StockReservedConsumer>();
+        x.AddConsumer<ERPApi.Consumers.StockUnavailableConsumer>();
+        x.AddConsumer<ERPApi.Consumers.OrderPickedConsumer>();
+        x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
+        x.AddConsumer<ERPApi.Consumers.OrderInvalidConsumer>();
+
+        x.AddEntityFrameworkOutbox<OrderDbContext>(o =>
+        {
+            o.UseSqlite();
+            o.UseBusOutbox();
+        });
+
+        x.UsingRabbitMq((context, cfg) =>
+        {
+            cfg.Host(rabbitMqSettings.Host, rabbitMqSettings.Port, h =>
+            {
+                h.Username(rabbitMqSettings.Username);
+                h.Password(rabbitMqSettings.Password);
+            });
+
+            cfg.Message<Contracts.Events.OrderCreated>(x => x.SetEntityName("Contracts.Events:OrderCreated"));
+            cfg.Publish<Contracts.Events.OrderCreated>(x => x.ExchangeType = "topic");
+
+            cfg.Message<Contracts.Events.OrderInvalid>(x => x.SetEntityName("Contracts.Events:OrderInvalid"));
+            cfg.Publish<Contracts.Events.OrderInvalid>(x => x.ExchangeType = "topic");
+
+            cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
+            cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
+
+            cfg.Message<Contracts.Events.StockUnavailable>(x => x.SetEntityName("Contracts.Events:StockUnavailable"));
+            cfg.Publish<Contracts.Events.StockUnavailable>(x => x.ExchangeType = "topic");
+
+            cfg.Message<Contracts.Events.OrderPicked>(x => x.SetEntityName("Contracts.Events:OrderPicked"));
+            cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
+
+            cfg.Message<Contracts.Events.OrderPacked>(x => x.SetEntityName("Contracts.Events:OrderPacked"));
+            cfg.Publish<Contracts.Events.OrderPacked>(x => x.ExchangeType = "topic");
+
+            // Configure the receive endpoint for CreateOrderRequest (Request/Reply pattern)
+            cfg.ReceiveEndpoint("create-order-request", e =>
+            {
+                e.PrefetchCount = 1; // SQLite: process one message at a time
+                e.ConfigureConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>(context);
+                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            });
+
+            // Configure receive endpoints for state update events
+            cfg.ReceiveEndpoint("erp-stock-reserved", e =>
+            {
+                e.PrefetchCount = 1; // SQLite: prevent database lock contention
+                e.ConfigureConsumer<ERPApi.Consumers.StockReservedConsumer>(context);
+                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            });
+
+            cfg.ReceiveEndpoint("erp-stock-unavailable", e =>
+            {
+                e.PrefetchCount = 1;
+                e.ConfigureConsumer<ERPApi.Consumers.StockUnavailableConsumer>(context);
+                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            });
+
+            cfg.ReceiveEndpoint("erp-order-picked", e =>
+            {
+                e.PrefetchCount = 1;
+                e.ConfigureConsumer<ERPApi.Consumers.OrderPickedConsumer>(context);
+                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            });
+
+            cfg.ReceiveEndpoint("erp-order-packed", e =>
+            {
+                e.PrefetchCount = 1;
+                e.ConfigureConsumer<ERPApi.Consumers.OrderPackedConsumer>(context);
+                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            });
+
+            // Invalid Order Channel - catch validation failures
+            cfg.ReceiveEndpoint("erp-invalid-order", e =>
+            {
+                e.PrefetchCount = 1;
+                e.ConfigureConsumer<ERPApi.Consumers.OrderInvalidConsumer>(context);
+            });
+
+            // Dead Letter Channel - catch all faulted messages
+            cfg.ReceiveEndpoint("erp-dead-letter", e =>
+            {
+                // Fault consumer for Request-Reply pattern
+                e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>(
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>>>(),
+                    context.GetRequiredService<IOrderRepository>()));
+
+                // Fault consumers for event-driven state updates
+                e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>(
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>>>(),
+                    context.GetRequiredService<IOrderRepository>()));
+
+                e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>(
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>>>(),
+                    context.GetRequiredService<IOrderRepository>()));
+
+                e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>(
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>>>(),
+                    context.GetRequiredService<IOrderRepository>()));
+
+                e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>(
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>>>(),
+                    context.GetRequiredService<IOrderRepository>()));
+
+                e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>(
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>>>(),
+                    context.GetRequiredService<IOrderRepository>()));
+            });
+
+            cfg.ConfigureEndpoints(context);
+        });
     });
-    
-    x.UsingRabbitMq((context, cfg) =>
+
+    // Database with SQLite optimized for concurrent access
+    builder.Services.AddDbContext<OrderDbContext>(options =>
     {
-        cfg.Host(rabbitMqSettings.Host, rabbitMqSettings.Port, h =>
-        {
-            h.Username(rabbitMqSettings.Username);
-            h.Password(rabbitMqSettings.Password);
-        });
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-        cfg.Message<Contracts.Events.OrderCreated>(x => x.SetEntityName("Contracts.Events:OrderCreated"));
-        cfg.Publish<Contracts.Events.OrderCreated>(x => x.ExchangeType = "topic");
-        
-        cfg.Message<Contracts.Events.OrderInvalid>(x => x.SetEntityName("Contracts.Events:OrderInvalid"));
-        cfg.Publish<Contracts.Events.OrderInvalid>(x => x.ExchangeType = "topic");
-        
-        cfg.Message<Contracts.Events.StockReserved>(x => x.SetEntityName("Contracts.Events:StockReserved"));
-        cfg.Publish<Contracts.Events.StockReserved>(x => x.ExchangeType = "topic");
-        
-        cfg.Message<Contracts.Events.StockUnavailable>(x => x.SetEntityName("Contracts.Events:StockUnavailable"));
-        cfg.Publish<Contracts.Events.StockUnavailable>(x => x.ExchangeType = "topic");
-        
-        cfg.Message<Contracts.Events.OrderPicked>(x => x.SetEntityName("Contracts.Events:OrderPicked"));
-        cfg.Publish<Contracts.Events.OrderPicked>(x => x.ExchangeType = "topic");
-        
-        cfg.Message<Contracts.Events.OrderPacked>(x => x.SetEntityName("Contracts.Events:OrderPacked"));
-        cfg.Publish<Contracts.Events.OrderPacked>(x => x.ExchangeType = "topic");
+        options.UseSqlite(connectionString, sqliteOptions =>
+            {
+                sqliteOptions.CommandTimeout(30);
+            })
+            .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
+            .EnableDetailedErrors(builder.Environment.IsDevelopment());
+    },
+    ServiceLifetime.Scoped);
 
-        // Configure the receive endpoint for CreateOrderRequest (Request/Reply pattern)
-        cfg.ReceiveEndpoint("create-order-request", e =>
-        {
-            e.PrefetchCount = 1; // SQLite: process one message at a time
-            e.ConfigureConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>(context);
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        });
-        
-        // Configure receive endpoints for state update events
-        cfg.ReceiveEndpoint("erp-stock-reserved", e =>
-        {
-            e.PrefetchCount = 1; // SQLite: prevent database lock contention
-            e.ConfigureConsumer<ERPApi.Consumers.StockReservedConsumer>(context);
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        });
-        
-        cfg.ReceiveEndpoint("erp-stock-unavailable", e =>
-        {
-            e.PrefetchCount = 1;
-            e.ConfigureConsumer<ERPApi.Consumers.StockUnavailableConsumer>(context);
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        });
-        
-        cfg.ReceiveEndpoint("erp-order-picked", e =>
-        {
-            e.PrefetchCount = 1;
-            e.ConfigureConsumer<ERPApi.Consumers.OrderPickedConsumer>(context);
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        });
-        
-        cfg.ReceiveEndpoint("erp-order-packed", e =>
-        {
-            e.PrefetchCount = 1;
-            e.ConfigureConsumer<ERPApi.Consumers.OrderPackedConsumer>(context);
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        });
-        
-        // Invalid Order Channel - catch validation failures
-        cfg.ReceiveEndpoint("erp-invalid-order", e =>
-        {
-            e.PrefetchCount = 1;
-            e.ConfigureConsumer<ERPApi.Consumers.OrderInvalidConsumer>(context);
-        });
-        
-        // Dead Letter Channel - catch all faulted messages
-        cfg.ReceiveEndpoint("erp-dead-letter", e =>
-        {
-            // Fault consumer for Request-Reply pattern
-            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>(
-                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>>>()));
-            
-            // Fault consumers for event-driven state updates
-            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>(
-                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>>>()));
-            
-            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>(
-                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>>>()));
-            
-            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>(
-                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>>>()));
-            
-            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>(
-                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>>>()));
-            
-            e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>(
-                context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>>>()));
-        });
+    // services
+    builder.Services.AddScoped<IOrderRepository, OrderRepositroy>();
+    builder.Services.AddScoped<IOrderService, OrderService>();
 
-        cfg.ConfigureEndpoints(context);
-    });
-});
+    // FluentValidation
+    builder.Services.AddScoped<IValidator<Entities.Model.Order>, ERPApi.Services.Validation.OrderValidator>();
+    var app = builder.Build();
 
-// Database with SQLite optimized for concurrent access
-builder.Services.AddDbContext<OrderDbContext>(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    
-    options.UseSqlite(connectionString, sqliteOptions =>
-        {
-            sqliteOptions.CommandTimeout(30);
-        })
-        .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
-        .EnableDetailedErrors(builder.Environment.IsDevelopment());
-},
-ServiceLifetime.Scoped);
-
-// services
-builder.Services.AddScoped<IOrderRepository, OrderRepositroy>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-
-// FluentValidation
-builder.Services.AddScoped<IValidator<Entities.Model.Order>, ERPApi.Services.Validation.OrderValidator>();
-var app = builder.Build();
-
-// Initialize SQLite for concurrent access (WAL mode)
-try
-{
-    using (var scope = app.Services.CreateScope())
+    // Initialize SQLite for concurrent access (WAL mode)
+    try
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
-        var connection = dbContext.Database.GetDbConnection();
-        await connection.OpenAsync();
-        using (var command = connection.CreateCommand())
+        using (var scope = app.Services.CreateScope())
         {
-            command.CommandText = @"
+            var dbContext = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
+            var connection = dbContext.Database.GetDbConnection();
+            await connection.OpenAsync();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = @"
                 PRAGMA journal_mode=WAL;
                 PRAGMA busy_timeout=5000;
                 PRAGMA synchronous=NORMAL;
             ";
-            await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync();
+            }
+            Log.Information("SQLite initialized with WAL mode for concurrent access");
         }
-        Log.Information("SQLite initialized with WAL mode for concurrent access");
     }
-}
-catch (Exception ex)
-{
-    // Ignore errors during design-time (migrations)
-    Log.Debug(ex, "Could not initialize SQLite (likely during design-time)");
-}
+    catch (Exception ex)
+    {
+        // Ignore errors during design-time (migrations)
+        Log.Debug(ex, "Could not initialize SQLite (likely during design-time)");
+    }
 
-app.MapOpenApi();
-app.MapScalarApiReference();
-app.UseCors(); // Enable CORS middleware
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+    app.UseCors(); // Enable CORS middleware
+    app.UseHttpsRedirection();
+    app.UseAuthorization();
+    app.MapControllers();
 
-Log.Information("ERPApi started successfully");
-app.Run();
+    Log.Information("ERPApi started successfully");
+    app.Run();
 }
 catch (Exception ex)
 {
