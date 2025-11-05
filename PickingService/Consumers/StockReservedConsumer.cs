@@ -17,14 +17,14 @@ namespace PickingService.Consumers
             var message = context.Message;
             
             var partial = message.IsPartialReservation ? "Partial" : "Full";
-            _logger.LogInformation("[Picking-Service] Picking started. OrderId={OrderId}, Type={OrderType}, Items={ItemCount}, Status={Status} ({Reserved}/{Requested})",
-                message.OrderId, message.OrderType, message.Items.Count, partial, message.TotalReserved, message.TotalRequested);
+            _logger.LogInformation("[Picking-Service] Picking started. OrderId={OrderId}, Type={OrderType}, Items={ItemCount}, Status={Status} ({Reserved}/{Requested}), CorrelationId={CorrelationId}",
+                message.OrderId, message.OrderType, message.Items.Count, partial, message.TotalReserved, message.TotalRequested, message.CorrelationId);
 
             try
             {
                 var pickingTime = Random.Shared.Next(2000, 5001);
-                _logger.LogInformation("[Picking-Service] Processing order. OrderId={OrderId}, EstimatedTime={PickingTime}ms",
-                    message.OrderId, pickingTime);
+                _logger.LogInformation("[Picking-Service] Processing order. OrderId={OrderId}, EstimatedTime={PickingTime}ms, CorrelationId={CorrelationId}",
+                    message.OrderId, pickingTime, message.CorrelationId);
                 
                 await Task.Delay(pickingTime, context.CancellationToken);
 
@@ -45,13 +45,13 @@ namespace PickingService.Consumers
                     ctx.Headers.Set("priority", priority);
                 });
 
-                _logger.LogInformation("[Picking-Service] Picking completed. OrderId={OrderId}, Picked={Picked}/{Requested}, Time={ActualTime}ms, Priority={Priority}",
-                    message.OrderId, message.TotalReserved, message.TotalRequested, pickingTime, priority);
+                _logger.LogInformation("[Picking-Service] Picking completed. OrderId={OrderId}, Picked={Picked}/{Requested}, Time={ActualTime}ms, Priority={Priority}, CorrelationId={CorrelationId}",
+                    message.OrderId, message.TotalReserved, message.TotalRequested, pickingTime, priority, message.CorrelationId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Picking-Service] Picking failed. OrderId={OrderId}",
-                    message.OrderId);
+                _logger.LogError(ex, "[Picking-Service] Picking failed. OrderId={OrderId}, CorrelationId={CorrelationId}",
+                    message.OrderId, message.CorrelationId);
                 throw;
             }
         }

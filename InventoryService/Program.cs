@@ -1,6 +1,20 @@
+using InventoryService.Configuration;
 using MassTransit;
 using Serilog;
 using Serilog.Events;
+
+// Load configuration early to get Seq settings
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
+    .Build();
+
+// Get Seq settings - throw exception if not found
+var seqBaseUrl = configuration["Seq:BaseUrl"] 
+    ?? throw new InvalidOperationException("Seq:BaseUrl configuration is missing in appsettings.json");
+var seqApiKey = configuration["Seq:ApiKey"] 
+    ?? throw new InvalidOperationException("Seq:ApiKey configuration is missing in appsettings.json");
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -20,12 +34,14 @@ Log.Logger = new LoggerConfiguration()
         rollingInterval: RollingInterval.Day,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} | {Message:lj}{NewLine}{Exception}",
         retainedFileCountLimit: 7)
-    .WriteTo.Seq("http://localhost:5341")
+    .WriteTo.Seq(seqBaseUrl,
+        apiKey: seqApiKey,
+        restrictedToMinimumLevel: LogEventLevel.Information)
     .CreateLogger();
 
 try
 {
-    Log.Information("Starting InventoryService");
+    Log.Information("Starting InventoryService with Seq configured at {SeqUrl}", seqBaseUrl);
 
     var builder = Host.CreateApplicationBuilder(args);
 
@@ -57,7 +73,9 @@ try
 
             cfg.ReceiveEndpoint("inventory-check", e =>
             {
+                e.PrefetchCount = 16;
                 e.ConfigureConsumer<InventoryService.Consumers.OrderCreatedConsumer>(context);
+                e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             });
 
             cfg.ReceiveEndpoint("inventory-dead-letter", e =>

@@ -16,14 +16,14 @@ namespace PackingService.Consumers
         {
             var message = context.Message;
             
-            _logger.LogInformation("[Packing-Service] Packing started. OrderId={OrderId}, Type={OrderType}, Items={ItemCount}",
-                message.OrderId, message.OrderType, message.Items.Count);
+            _logger.LogInformation("[Packing-Service] Packing started. OrderId={OrderId}, Type={OrderType}, Items={ItemCount}, CorrelationId={CorrelationId}",
+                message.OrderId, message.OrderType, message.Items.Count, message.CorrelationId);
 
             try
             {
                 var packingTime = Random.Shared.Next(1500, 3001);
-                _logger.LogInformation("[Packing-Service] Processing order. OrderId={OrderId}, EstimatedTime={PackingTime}ms",
-                    message.OrderId, packingTime);
+                _logger.LogInformation("[Packing-Service] Processing order. OrderId={OrderId}, EstimatedTime={PackingTime}ms, CorrelationId={CorrelationId}",
+                    message.OrderId, packingTime, message.CorrelationId);
                 
                 await Task.Delay(packingTime, context.CancellationToken);
 
@@ -50,13 +50,13 @@ namespace PackingService.Consumers
 
                 await context.Publish(orderPacked);
 
-                _logger.LogInformation("[Packing-Service] Packing completed. OrderId={OrderId}, Time={ActualTime}ms, Box={BoxSize}, Weight={Weight}kg",
-                    message.OrderId, packingTime, boxSize, totalWeight);
+                _logger.LogInformation("[Packing-Service] Packing completed. OrderId={OrderId}, Time={ActualTime}ms, Box={BoxSize}, Weight={Weight}kg, CorrelationId={CorrelationId}",
+                    message.OrderId, packingTime, boxSize, totalWeight, message.CorrelationId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Packing-Service] Packing failed. OrderId={OrderId}",
-                    message.OrderId);
+                _logger.LogError(ex, "[Packing-Service] Packing failed. OrderId={OrderId}, CorrelationId={CorrelationId}",
+                    message.OrderId, message.CorrelationId);
                 throw;
             }
         }
