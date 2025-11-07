@@ -29,8 +29,7 @@ namespace InventoryService.Consumers
                 orderCreated.TotalItems,
                 orderCreated.CorrelationId);
 
-            var checkDelay = (orderCreated.OrderType == "Priority" && orderCreated.Priority == 9) ? 100 : 500;
-            await Task.Delay(checkDelay);
+            await Task.Delay(500);
 
             var availableItems = new List<OrderItemDto>();
             var unavailableItems = new List<OrderItemDto>();
