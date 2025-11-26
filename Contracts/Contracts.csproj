@@ -9,7 +9,4 @@
   <ItemGroup>
     <ProjectReference Include="..\Entities\Entities.csproj" />
   </ItemGroup>
-
-  <!-- No project reference to Entities to avoid leaking domain models across boundaries -->
-
 </Project>
