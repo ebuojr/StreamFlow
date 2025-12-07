@@ -1,7 +1,9 @@
 ﻿using Entities.Model;
+using ERPApi.DBContext;
 using ERPApi.Services.Order;
 using Microsoft.AspNetCore.Mvc;
 using Contracts;
+using MassTransit;
 
 namespace ERPApi.Controllers
 {
@@ -9,10 +11,21 @@ namespace ERPApi.Controllers
     [ApiController]
     public class OrderController : ControllerBase
     {
-        private IOrderService _orderService;
-        public OrderController(IOrderService orderService)
+        private readonly IOrderService _orderService;
+        private readonly IPublishEndpoint _publishEndpoint;
+        private readonly OrderDbContext _context;
+        private readonly ILogger<OrderController> _logger;
+
+        public OrderController(
+            IOrderService orderService,
+            IPublishEndpoint publishEndpoint,
+            OrderDbContext context,
+            ILogger<OrderController> logger)
         {
             _orderService = orderService;
+            _publishEndpoint = publishEndpoint;
+            _context = context;
+            _logger = logger;
         }
 
         [HttpPost]
@@ -23,10 +36,23 @@ namespace ERPApi.Controllers
 
             try
             {
-                var createdOrderNo = await _orderService.CreateAndSendOrderAsync(order);
+                // Create order and get enriched event (order is added to context but not saved yet)
+                var orderCreatedEvent = await _orderService.CreateOrderAsync(order);
+
+                // Publish event directly to RabbitMQ
+                // Note: API-initiated publishes don't use the outbox (no consumer context).
+                // For guaranteed delivery from API endpoints, consider using the Request/Response
+                // pattern via OrderApi -> CreateOrderRequestConsumer instead.
+                await _publishEndpoint.Publish(orderCreatedEvent);
+                
+                // Save changes to persist the order
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("[ERP-Api] Order created via API. OrderNo={OrderNo}", orderCreatedEvent.OrderNo);
+
                 var response = new CreateOrderResponse
                 {
-                    OrderNo = createdOrderNo,
+                    OrderNo = orderCreatedEvent.OrderNo,
                     IsSuccessfullyCreated = true,
                     ErrorMessage = string.Empty
                 };
@@ -70,20 +96,6 @@ namespace ERPApi.Controllers
                     return NotFound($"Order with ID {id} not found.");
 
                 return Ok(order);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        [HttpGet("dead-letter")]
-        public async Task<IActionResult> GetDeadLetterMessages()
-        {
-            try
-            {
-                var faultedMessages = await _orderService.GetFaultedMessagesAsync();
-                return Ok(faultedMessages);
             }
             catch (Exception ex)
             {

@@ -91,10 +91,16 @@ try
         x.AddConsumer<ERPApi.Consumers.OrderPackedConsumer>();
         x.AddConsumer<ERPApi.Consumers.OrderInvalidConsumer>();
 
+        // Configure Entity Framework Outbox
         x.AddEntityFrameworkOutbox<OrderDbContext>(o =>
         {
             o.UseSqlite();
+            
+            // Enable the bus outbox - this delivers messages from the outbox to the transport
             o.UseBusOutbox();
+            
+            // Query delay - how often to check for pending outbox messages
+            o.QueryDelay = TimeSpan.FromSeconds(1);
         });
 
         x.UsingRabbitMq((context, cfg) =>
@@ -124,9 +130,11 @@ try
             cfg.Publish<Contracts.Events.OrderPacked>(x => x.ExchangeType = "topic");
 
             // Configure the receive endpoint for CreateOrderRequest (Request/Reply pattern)
+            // UseEntityFrameworkOutbox enables the outbox for this endpoint
             cfg.ReceiveEndpoint("create-order-request", e =>
             {
                 e.PrefetchCount = 1; // SQLite: process one message at a time
+                e.UseEntityFrameworkOutbox<OrderDbContext>(context);
                 e.ConfigureConsumer<ERPApi.Consumers.CreateOrderRequestConsumer>(context);
                 e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             });
@@ -135,6 +143,7 @@ try
             cfg.ReceiveEndpoint("erp-stock-reserved", e =>
             {
                 e.PrefetchCount = 1; // SQLite: prevent database lock contention
+                e.UseEntityFrameworkOutbox<OrderDbContext>(context);
                 e.ConfigureConsumer<ERPApi.Consumers.StockReservedConsumer>(context);
                 e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             });
@@ -142,6 +151,7 @@ try
             cfg.ReceiveEndpoint("erp-stock-unavailable", e =>
             {
                 e.PrefetchCount = 1;
+                e.UseEntityFrameworkOutbox<OrderDbContext>(context);
                 e.ConfigureConsumer<ERPApi.Consumers.StockUnavailableConsumer>(context);
                 e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             });
@@ -149,6 +159,7 @@ try
             cfg.ReceiveEndpoint("erp-order-picked", e =>
             {
                 e.PrefetchCount = 1;
+                e.UseEntityFrameworkOutbox<OrderDbContext>(context);
                 e.ConfigureConsumer<ERPApi.Consumers.OrderPickedConsumer>(context);
                 e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             });
@@ -156,6 +167,7 @@ try
             cfg.ReceiveEndpoint("erp-order-packed", e =>
             {
                 e.PrefetchCount = 1;
+                e.UseEntityFrameworkOutbox<OrderDbContext>(context);
                 e.ConfigureConsumer<ERPApi.Consumers.OrderPackedConsumer>(context);
                 e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             });
@@ -172,29 +184,23 @@ try
             {
                 // Fault consumer for Request-Reply pattern
                 e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>(
-                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>>>(),
-                    context.GetRequiredService<IOrderRepository>()));
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.CreateOrderRequest>>>()));
 
                 // Fault consumers for event-driven state updates
                 e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>(
-                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>>>(),
-                    context.GetRequiredService<IOrderRepository>()));
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderCreated>>>()));
 
                 e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>(
-                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>>>(),
-                    context.GetRequiredService<IOrderRepository>()));
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockReserved>>>()));
 
                 e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>(
-                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>>>(),
-                    context.GetRequiredService<IOrderRepository>()));
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.StockUnavailable>>>()));
 
                 e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>(
-                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>>>(),
-                    context.GetRequiredService<IOrderRepository>()));
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPicked>>>()));
 
                 e.Consumer(() => new ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>(
-                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>>>(),
-                    context.GetRequiredService<IOrderRepository>()));
+                    context.GetRequiredService<ILogger<ERPApi.Consumers.FaultConsumer<Contracts.Events.OrderPacked>>>()));
             });
 
             cfg.ConfigureEndpoints(context);

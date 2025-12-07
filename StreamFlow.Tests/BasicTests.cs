@@ -4,7 +4,6 @@ using ERPApi.DBContext;
 using ERPApi.Services.Order;
 using ERPApi.Repository.Order;
 using FluentAssertions;
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -83,20 +82,18 @@ namespace StreamFlow.Tests
         {
             // Arrange
             var context = CreateInMemoryDbContext();
-            var mockPublishEndpoint = new Mock<IPublishEndpoint>();
             var mockLogger = new Mock<ILogger<OrderService>>();
             var mockRepository = new Mock<IOrderRepository>();
-            
+
             var service = new OrderService(
                 mockRepository.Object,
                 context,
-                mockPublishEndpoint.Object,
                 mockLogger.Object
             );
 
             // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(() => 
-                service.CreateAndSendOrderAsync(null!));
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                service.CreateOrderAsync(null!));
         }
 
         [Fact]
@@ -104,14 +101,12 @@ namespace StreamFlow.Tests
         {
             // Arrange
             var context = CreateInMemoryDbContext();
-            var mockPublishEndpoint = new Mock<IPublishEndpoint>();
             var mockLogger = new Mock<ILogger<OrderService>>();
             var mockRepository = new Mock<IOrderRepository>();
-            
+
             var service = new OrderService(
                 mockRepository.Object,
                 context,
-                mockPublishEndpoint.Object,
                 mockLogger.Object
             );
 
@@ -119,8 +114,8 @@ namespace StreamFlow.Tests
             order.OrderItems = new List<OrderItem>(); // No items
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-                service.CreateAndSendOrderAsync(order));
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+                service.CreateOrderAsync(order));
             exception.Message.Should().Contain("at least one item");
         }
 
@@ -129,14 +124,12 @@ namespace StreamFlow.Tests
         {
             // Arrange
             var context = CreateInMemoryDbContext();
-            var mockPublishEndpoint = new Mock<IPublishEndpoint>();
             var mockLogger = new Mock<ILogger<OrderService>>();
             var mockRepository = new Mock<IOrderRepository>();
-            
+
             var service = new OrderService(
                 mockRepository.Object,
                 context,
-                mockPublishEndpoint.Object,
                 mockLogger.Object
             );
 
@@ -144,8 +137,8 @@ namespace StreamFlow.Tests
             order.Customer = null!; // No customer
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-                service.CreateAndSendOrderAsync(order));
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+                service.CreateOrderAsync(order));
             exception.Message.Should().Contain("Customer");
         }
 
@@ -158,7 +151,7 @@ namespace StreamFlow.Tests
             // Act - Check if MassTransit outbox tables exist in model
             var outboxMessageType = context.Model.GetEntityTypes()
                 .FirstOrDefault(t => t.ClrType.Name.Contains("OutboxMessage"));
-            
+
             var outboxStateType = context.Model.GetEntityTypes()
                 .FirstOrDefault(t => t.ClrType.Name.Contains("OutboxState"));
 

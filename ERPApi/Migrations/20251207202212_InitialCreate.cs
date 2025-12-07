@@ -6,14 +6,11 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ERPApi.Migrations
 {
     /// <inheritdoc />
-    public partial class AddMassTransitOutbox : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "Logs");
-
             migrationBuilder.CreateTable(
                 name: "InboxState",
                 columns: table => new
@@ -38,6 +35,40 @@ namespace ERPApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Orders",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    OrderNo = table.Column<int>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    OrderState = table.Column<string>(type: "TEXT", nullable: false),
+                    CountryCode = table.Column<string>(type: "TEXT", nullable: false),
+                    TotalAmount = table.Column<decimal>(type: "TEXT", nullable: false),
+                    Order_CustomerId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CorrelationId = table.Column<string>(type: "TEXT", nullable: false),
+                    RowVersion = table.Column<byte[]>(type: "BLOB", rowVersion: true, nullable: true),
+                    CustomerId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CustomerFirstName = table.Column<string>(type: "TEXT", nullable: false),
+                    CustomerLastName = table.Column<string>(type: "TEXT", nullable: false),
+                    CustomerEmail = table.Column<string>(type: "TEXT", nullable: false),
+                    CustomerPhone = table.Column<string>(type: "TEXT", nullable: false),
+                    PaymentMethod = table.Column<string>(type: "TEXT", nullable: false),
+                    PaymentStatus = table.Column<string>(type: "TEXT", nullable: false),
+                    PaidAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    Currency = table.Column<string>(type: "TEXT", nullable: false),
+                    PaymentAmount = table.Column<decimal>(type: "TEXT", nullable: false),
+                    Ship_Street = table.Column<string>(type: "TEXT", nullable: false),
+                    Ship_City = table.Column<string>(type: "TEXT", nullable: false),
+                    Ship_State = table.Column<string>(type: "TEXT", nullable: false),
+                    Ship_PostalCode = table.Column<string>(type: "TEXT", nullable: false),
+                    Ship_Country = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Orders", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "OutboxState",
                 columns: table => new
                 {
@@ -51,6 +82,30 @@ namespace ERPApi.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_OutboxState", x => x.OutboxId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OrderItems",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    OrderId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Sku = table.Column<string>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    Quantity = table.Column<int>(type: "INTEGER", nullable: false),
+                    UnitPrice = table.Column<decimal>(type: "TEXT", nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "TEXT", nullable: false),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false, defaultValue: "Pending")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrderItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrderItems_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -101,6 +156,17 @@ namespace ERPApi.Migrations
                 column: "Delivered");
 
             migrationBuilder.CreateIndex(
+                name: "IX_OrderItems_OrderId",
+                table: "OrderItems",
+                column: "OrderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Orders_OrderNo",
+                table: "Orders",
+                column: "OrderNo",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OutboxMessage_EnqueueTime",
                 table: "OutboxMessage",
                 column: "EnqueueTime");
@@ -132,47 +198,19 @@ namespace ERPApi.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "OrderItems");
+
+            migrationBuilder.DropTable(
                 name: "OutboxMessage");
+
+            migrationBuilder.DropTable(
+                name: "Orders");
 
             migrationBuilder.DropTable(
                 name: "InboxState");
 
             migrationBuilder.DropTable(
                 name: "OutboxState");
-
-            migrationBuilder.CreateTable(
-                name: "Logs",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CorrelationId = table.Column<string>(type: "TEXT", nullable: true),
-                    Exception = table.Column<string>(type: "TEXT", nullable: true),
-                    Level = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
-                    Message = table.Column<string>(type: "TEXT", nullable: false),
-                    OrderNo = table.Column<int>(type: "INTEGER", nullable: true),
-                    Properties = table.Column<string>(type: "TEXT", nullable: true),
-                    ServiceName = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "TEXT", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Logs", x => x.Id);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Logs_CorrelationId",
-                table: "Logs",
-                column: "CorrelationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Logs_OrderNo",
-                table: "Logs",
-                column: "OrderNo");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Logs_Timestamp",
-                table: "Logs",
-                column: "Timestamp");
         }
     }
 }

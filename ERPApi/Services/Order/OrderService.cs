@@ -2,7 +2,6 @@
 using Contracts.Events;
 using ERPApi.DBContext;
 using ERPApi.Repository.Order;
-using MassTransit;
 
 namespace ERPApi.Services.Order
 {
@@ -10,22 +9,19 @@ namespace ERPApi.Services.Order
     {
         private readonly IOrderRepository orderRepository;
         private readonly OrderDbContext context;
-        private readonly IPublishEndpoint publishEndpoint;
         private readonly ILogger<OrderService> logger;
 
         public OrderService(
             IOrderRepository orderRepository,
             OrderDbContext context,
-            IPublishEndpoint publishEndpoint,
             ILogger<OrderService> logger)
         {
             this.orderRepository = orderRepository;
             this.context = context;
-            this.publishEndpoint = publishEndpoint;
             this.logger = logger;
         }
 
-        public async Task<int> CreateAndSendOrderAsync(Entities.Model.Order order)
+        public async Task<OrderCreated> CreateOrderAsync(Entities.Model.Order order)
         {
             var correlationId = Guid.NewGuid().ToString();
 
@@ -37,80 +33,63 @@ namespace ERPApi.Services.Order
                 throw new ArgumentException($"Order validation failed: {string.Join(", ", validationErrors)}");
             }
 
-            // Begin transaction - store order + MassTransit outbox message atomically
-            using var transaction = await context.Database.BeginTransactionAsync();
+            // Add order to context (DO NOT call SaveChangesAsync here!)
+            // The caller (consumer) will call SaveChangesAsync after publishing
+            // to ensure both order and outbox message are committed atomically
+            var createdOrderNo = await orderRepository.CreateOrderAsync(order);
+            
+            logger.LogInformation("Order {OrderNo} added to context with ID {OrderId} [CorrelationId: {CorrelationId}]",
+                createdOrderNo, order.Id, correlationId);
 
-            try
+            // Build enriched OrderCreated event (Content Enricher pattern)
+            var enrichedEvent = new OrderCreated
             {
-                // 1. Save order in database
-                var createdOrderNo = await orderRepository.CreateOrderAsync(order);
-                logger.LogInformation("Order {OrderNo} created with ID {OrderId} [CorrelationId: {CorrelationId}]",
-                    createdOrderNo, order.Id, correlationId);
+                OrderId = order.Id,
+                OrderNo = createdOrderNo,
+                OrderType = order.FindOrderType(),
+                Priority = order.GetPriority(),
 
-
-                // 2. Build enriched OrderCreated event (Content Enricher pattern)
-                var enrichedEvent = new OrderCreated
+                // Enrich: Items for inventory check
+                Items = order.OrderItems.Select(i => new OrderItemDto
                 {
-                    #region Enrichment Details
-                    OrderId = order.Id,
-                    OrderNo = createdOrderNo,
-                    OrderType = order.FindOrderType(),
-                    Priority = order.GetPriority(),
+                    Sku = i.Sku ?? string.Empty,
+                    Quantity = i.Quantity,
+                    ProductName = i.Name ?? string.Empty,
+                    UnitPrice = i.UnitPrice
+                }).ToList(),
 
-                    // Enrich: Items for inventory check
-                    Items = order.OrderItems.Select(i => new OrderItemDto
-                    {
-                        Sku = i.Sku ?? string.Empty,
-                        Quantity = i.Quantity,
-                        ProductName = i.Name ?? string.Empty,
-                        UnitPrice = i.UnitPrice
-                    }).ToList(),
+                // Enrich: Customer context
+                Customer = new CustomerDto
+                {
+                    CustomerId = order.Customer.Id,
+                    Name = $"{order.Customer.FirstName} {order.Customer.LastName}",
+                    Email = order.Customer.Email,
+                    CustomerType = "Regular"
+                },
 
-                    // Enrich: Customer context
-                    Customer = new CustomerDto
-                    {
-                        CustomerId = order.Customer.Id,
-                        Name = $"{order.Customer.FirstName} {order.Customer.LastName}",
-                        Email = order.Customer.Email,
-                        CustomerType = "Regular" // Can be extended
-                    },
+                // Enrich: Shipping context
+                ShippingAddress = new ShippingAddressDto
+                {
+                    Street = order.ShippingAddress.Street,
+                    City = order.ShippingAddress.City,
+                    PostalCode = order.ShippingAddress.PostalCode,
+                    State = order.ShippingAddress.State,
+                    Country = order.ShippingAddress.Country
+                },
 
-                    // Enrich: Shipping context
-                    ShippingAddress = new ShippingAddressDto
-                    {
-                        Street = order.ShippingAddress.Street,
-                        City = order.ShippingAddress.City,
-                        PostalCode = order.ShippingAddress.PostalCode,
-                        State = order.ShippingAddress.State,
-                        Country = order.ShippingAddress.Country
-                    },
+                // Enrich: Order summary
+                TotalAmount = order.TotalAmount,
+                TotalItems = order.OrderItems.Count,
 
-                    // Enrich: Order summary
-                    TotalAmount = order.TotalAmount,
-                    TotalItems = order.OrderItems.Count,
-                    #endregion
+                CorrelationId = correlationId,
+                CreatedAt = DateTime.UtcNow
+            };
 
-                    CorrelationId = correlationId,
-                    CreatedAt = DateTime.UtcNow
-                };
+            logger.LogInformation(
+                "[ERP-Api] Order prepared. OrderNo={OrderNo}, Type={OrderType}, Priority={Priority}",
+                createdOrderNo, enrichedEvent.OrderType, enrichedEvent.Priority);
 
-                await publishEndpoint.Publish(enrichedEvent);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                logger.LogInformation(
-                    "[ERP-Api] Order created and event published. OrderNo={OrderNo}, Type={OrderType}, Priority={Priority}",
-                    createdOrderNo, enrichedEvent.OrderType, enrichedEvent.Priority);
-
-                return createdOrderNo;
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                logger.LogError(ex, "[ERP-Api] Failed to create order. OrderId={OrderId}",
-                    order.Id);
-                throw;
-            }
+            return enrichedEvent;
         }
 
         private List<string> ValidateOrder(Entities.Model.Order order)
@@ -159,11 +138,5 @@ namespace ERPApi.Services.Order
         {
             return await orderRepository.UpdateOrderState(id, state);
         }
-
-        public async Task<IEnumerable<MassTransit.EntityFrameworkCoreIntegration.OutboxMessage>> GetFaultedMessagesAsync()
-        {
-            return await orderRepository.GetFaultedMessagesAsync();
-        }
-
     }
 }

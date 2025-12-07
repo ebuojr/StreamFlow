@@ -1,4 +1,3 @@
-using ERPApi.Repository.Order;
 using MassTransit;
 
 namespace ERPApi.Consumers
@@ -6,15 +5,13 @@ namespace ERPApi.Consumers
     public class FaultConsumer<T> : IConsumer<Fault<T>> where T : class
     {
         private readonly ILogger<FaultConsumer<T>> _logger;
-        private readonly IOrderRepository _orderRepository;
 
-        public FaultConsumer(ILogger<FaultConsumer<T>> logger, IOrderRepository orderRepository)
+        public FaultConsumer(ILogger<FaultConsumer<T>> logger)
         {
             _logger = logger;
-            _orderRepository = orderRepository;
         }
 
-        public async Task Consume(ConsumeContext<Fault<T>> context)
+        public Task Consume(ConsumeContext<Fault<T>> context)
         {
             var fault = context.Message;
             var messageType = typeof(T).Name;
@@ -32,19 +29,11 @@ namespace ERPApi.Consumers
                 }
             }
 
-            // Store the faulted message for manual investigation
-            try
-            {
-                await _orderRepository.StoreFaultedMessageAsync(fault, 999);
-                _logger.LogInformation("[ERP-Api] Faulted message stored for manual investigation. FaultId={FaultId}", fault.FaultId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[ERP-Api] Failed to store faulted message. FaultId={FaultId}", fault.FaultId);
-            }
-
             // Alert operations team (in production, this would integrate with alerting systems)
+            // Faults are logged to Seq for investigation - no database storage needed
             _logger.LogCritical("[ERP-Api] 🚨 MANUAL INTERVENTION REQUIRED: Message {FaultId} requires investigation", fault.FaultId);
+
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,7 +1,6 @@
 using Contracts;
 using Contracts.Events;
 using ERPApi.Services.Order;
-using ERPApi.Services.Validation;
 using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +28,7 @@ namespace ERPApi.Consumers
         {
             var request = context.Message;
             var correlationId = request.CorrelationId?.ToString() ?? Guid.NewGuid().ToString();
-            
+
             using (_logger.BeginScope(new Dictionary<string, object>
             {
                 ["CorrelationId"] = correlationId,
@@ -40,70 +39,77 @@ namespace ERPApi.Consumers
                     request.Order.CustomerId);
 
                 var validationResult = await _orderValidator.ValidateAsync(request.Order);
-            
-            if (!validationResult.IsValid)
-            {
-                var validationErrors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
-                
-                _logger.LogWarning("[ERP-Api] Order validation failed. CustomerId={CustomerId}, Errors={Errors}",
-                    request.Order.CustomerId,
-                    string.Join(", ", validationErrors));
 
-                await context.Publish(new OrderInvalid
+                if (!validationResult.IsValid)
                 {
-                    OrderId = request.Order.Id,
-                    CorrelationId = request.CorrelationId ?? Guid.NewGuid(),
-                    InvalidatedAt = DateTime.UtcNow,
-                    Reason = "Order validation failed",
-                    ValidationErrors = validationErrors,
-                    OrderJson = JsonSerializer.Serialize(request.Order)
-                });
+                    var validationErrors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
 
-                await context.RespondAsync(new CreateOrderResponse
+                    _logger.LogWarning("[ERP-Api] Order validation failed. CustomerId={CustomerId}, Errors={Errors}",
+                        request.Order.CustomerId,
+                        string.Join(", ", validationErrors));
+
+                    // Publish via ConsumeContext - this goes through the outbox!
+                    await context.Publish(new OrderInvalid
+                    {
+                        OrderId = request.Order.Id,
+                        CorrelationId = request.CorrelationId ?? Guid.NewGuid(),
+                        InvalidatedAt = DateTime.UtcNow,
+                        Reason = "Order validation failed",
+                        ValidationErrors = validationErrors,
+                        OrderJson = JsonSerializer.Serialize(request.Order)
+                    });
+
+                    await context.RespondAsync(new CreateOrderResponse
+                    {
+                        OrderNo = 0,
+                        IsSuccessfullyCreated = false,
+                        ErrorMessage = $"Validation failed: {string.Join("; ", validationErrors)}"
+                    });
+
+                    _logger.LogInformation("[ERP-Api] OrderInvalid event published via outbox.");
+
+                    return;
+                }
+
+                try
                 {
-                    OrderNo = 0,
-                    IsSuccessfullyCreated = false,
-                    ErrorMessage = $"Validation failed: {string.Join("; ", validationErrors)}"
-                });
+                    // Create order and get enriched event
+                    var orderCreatedEvent = await _orderService.CreateOrderAsync(request.Order);
 
-                _logger.LogInformation("[ERP-Api] OrderInvalid event published.");
+                    // Publish via ConsumeContext - this goes through the MassTransit outbox!
+                    // The outbox ensures the message is saved to the database in the same transaction
+                    // and delivered reliably by the bus outbox worker.
+                    await context.Publish(orderCreatedEvent);
 
-                return;
-            }
+                    _logger.LogInformation("[ERP-Api] Order created and OrderCreated event published via outbox. OrderNo={OrderNo}, CustomerId={CustomerId}",
+                        orderCreatedEvent.OrderNo, request.Order.CustomerId);
 
-            try
-            {
-                var orderNo = await _orderService.CreateAndSendOrderAsync(request.Order);
-
-                _logger.LogInformation("[ERP-Api] Order created. OrderNo={OrderNo}, CustomerId={CustomerId}",
-                    orderNo, request.Order.CustomerId);
-
-                await context.RespondAsync(new CreateOrderResponse
+                    await context.RespondAsync(new CreateOrderResponse
+                    {
+                        OrderNo = orderCreatedEvent.OrderNo,
+                        IsSuccessfullyCreated = true,
+                        ErrorMessage = string.Empty
+                    });
+                }
+                catch (DbUpdateException ex)
                 {
-                    OrderNo = orderNo,
-                    IsSuccessfullyCreated = true,
-                    ErrorMessage = string.Empty
-                });
-            }
-            catch (DbUpdateException ex)
-            {
-                _logger.LogError(ex, "[ERP-Api] Transient DB error. CustomerId={CustomerId}, Will retry.",
-                    request.Order.CustomerId);
-                
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[ERP-Api] Business error. CustomerId={CustomerId}, No retry.",
-                    request.Order.CustomerId);
+                    _logger.LogError(ex, "[ERP-Api] Transient DB error. CustomerId={CustomerId}, Will retry.",
+                        request.Order.CustomerId);
 
-                await context.RespondAsync(new CreateOrderResponse
+                    throw;
+                }
+                catch (Exception ex)
                 {
-                    OrderNo = 0,
-                    IsSuccessfullyCreated = false,
-                    ErrorMessage = ex.Message + (ex.InnerException != null ? " | " + ex.InnerException.Message : string.Empty)
-                });
-            }
+                    _logger.LogError(ex, "[ERP-Api] Business error. CustomerId={CustomerId}, No retry.",
+                        request.Order.CustomerId);
+
+                    await context.RespondAsync(new CreateOrderResponse
+                    {
+                        OrderNo = 0,
+                        IsSuccessfullyCreated = false,
+                        ErrorMessage = ex.Message + (ex.InnerException != null ? " | " + ex.InnerException.Message : string.Empty)
+                    });
+                }
             }
         }
     }
