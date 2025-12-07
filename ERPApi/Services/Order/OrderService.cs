@@ -1,12 +1,8 @@
-﻿using System.Text.Json;
-using Contracts;
-using Contracts.Dtos;
+﻿using Contracts.Dtos;
 using Contracts.Events;
 using ERPApi.DBContext;
 using ERPApi.Repository.Order;
-using Entities.Model;
 using MassTransit;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERPApi.Services.Order
 {
@@ -32,7 +28,7 @@ namespace ERPApi.Services.Order
         public async Task<int> CreateAndSendOrderAsync(Entities.Model.Order order)
         {
             var correlationId = Guid.NewGuid().ToString();
-            
+
             // Validate order
             var validationErrors = ValidateOrder(order);
             if (validationErrors.Any())
@@ -43,22 +39,24 @@ namespace ERPApi.Services.Order
 
             // Begin transaction - store order + MassTransit outbox message atomically
             using var transaction = await context.Database.BeginTransactionAsync();
-            
+
             try
             {
                 // 1. Save order in database
                 var createdOrderNo = await orderRepository.CreateOrderAsync(order);
-                logger.LogInformation("Order {OrderNo} created with ID {OrderId} [CorrelationId: {CorrelationId}]", 
+                logger.LogInformation("Order {OrderNo} created with ID {OrderId} [CorrelationId: {CorrelationId}]",
                     createdOrderNo, order.Id, correlationId);
+
 
                 // 2. Build enriched OrderCreated event (Content Enricher pattern)
                 var enrichedEvent = new OrderCreated
                 {
+                    #region Enrichment Details
                     OrderId = order.Id,
                     OrderNo = createdOrderNo,
                     OrderType = order.FindOrderType(),
                     Priority = order.GetPriority(),
-                    
+
                     // Enrich: Items for inventory check
                     Items = order.OrderItems.Select(i => new OrderItemDto
                     {
@@ -67,7 +65,7 @@ namespace ERPApi.Services.Order
                         ProductName = i.Name ?? string.Empty,
                         UnitPrice = i.UnitPrice
                     }).ToList(),
-                    
+
                     // Enrich: Customer context
                     Customer = new CustomerDto
                     {
@@ -76,7 +74,7 @@ namespace ERPApi.Services.Order
                         Email = order.Customer.Email,
                         CustomerType = "Regular" // Can be extended
                     },
-                    
+
                     // Enrich: Shipping context
                     ShippingAddress = new ShippingAddressDto
                     {
@@ -86,11 +84,12 @@ namespace ERPApi.Services.Order
                         State = order.ShippingAddress.State,
                         Country = order.ShippingAddress.Country
                     },
-                    
+
                     // Enrich: Order summary
                     TotalAmount = order.TotalAmount,
                     TotalItems = order.OrderItems.Count,
-                    
+                    #endregion
+
                     CorrelationId = correlationId,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -98,17 +97,17 @@ namespace ERPApi.Services.Order
                 await publishEndpoint.Publish(enrichedEvent);
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
-                
+
                 logger.LogInformation(
-                    "[ERP-Api] Order created and event published. OrderNo={OrderNo}, Type={OrderType}, Priority={Priority}", 
+                    "[ERP-Api] Order created and event published. OrderNo={OrderNo}, Type={OrderType}, Priority={Priority}",
                     createdOrderNo, enrichedEvent.OrderType, enrichedEvent.Priority);
-                
+
                 return createdOrderNo;
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                logger.LogError(ex, "[ERP-Api] Failed to create order. OrderId={OrderId}", 
+                logger.LogError(ex, "[ERP-Api] Failed to create order. OrderId={OrderId}",
                     order.Id);
                 throw;
             }
@@ -117,27 +116,27 @@ namespace ERPApi.Services.Order
         private List<string> ValidateOrder(Entities.Model.Order order)
         {
             var errors = new List<string>();
-            
+
             if (order == null)
                 errors.Add("Order cannot be null");
             else
             {
                 if (order.OrderItems == null || !order.OrderItems.Any())
                     errors.Add("Order must contain at least one item");
-                    
+
                 if (order.Customer == null)
                     errors.Add("Customer information is required");
-                    
+
                 if (order.ShippingAddress == null)
                     errors.Add("Shipping address is required");
-                    
+
                 if (order.Payment == null)
                     errors.Add("Payment information is required");
-                    
+
                 if (order.TotalAmount <= 0)
                     errors.Add("Total amount must be greater than zero");
             }
-            
+
             return errors;
         }
 

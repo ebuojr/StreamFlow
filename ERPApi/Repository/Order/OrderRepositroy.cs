@@ -13,19 +13,20 @@ namespace ERPApi.Repository.Order
             _context = context;
         }
 
-    public async Task<int> CreateOrderAsync(Entities.Model.Order order)
-    {
-        // NOTE: Transaction is managed by the service layer (for transactional outbox pattern)
-        // Generate incremental OrderNo (max + 1)
-        var maxOrderNo = await _context.Orders.MaxAsync(o => (int?)o.OrderNo) ?? 0;
-        int newOrderNo = maxOrderNo >= 1000 ? (maxOrderNo + 1) : 1000;
+        public async Task<int> CreateOrderAsync(Entities.Model.Order order)
+        {
+            // NOTE: Transaction is managed by the service layer (for transactional outbox pattern)
+            // Generate incremental OrderNo (max + 1)
+            var maxOrderNo = await _context.Orders.MaxAsync(o => (int?)o.OrderNo) ?? 0;
+            int newOrderNo = maxOrderNo >= 1000 ? (maxOrderNo + 1) : 1000;
 
-        order.OrderNo = newOrderNo;
-        _context.Orders.Add(order);
-        // NOTE: SaveChanges is called by service layer after adding outbox message
+            order.OrderNo = newOrderNo;
+            _context.Orders.Add(order);
+            // NOTE: SaveChanges is called by service layer after adding outbox message
 
-        return newOrderNo;
-    }        public async Task<IEnumerable<Entities.Model.Order>> GetAllOrders()
+            return newOrderNo;
+        }
+        public async Task<IEnumerable<Entities.Model.Order>> GetAllOrders()
         {
             var orders = await _context.Orders
                 .Include(o => o.OrderItems)
